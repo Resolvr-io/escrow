@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bdk = { git = "https://github.com/bitcoindevkit/bdk", features = ["keys-bip39"] }
-bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk" }
-bdk_file_store = { git = "https://github.com/bitcoindevkit/bdk" }
+bdk = { version = "0.28.2", features = ["keys-bip39"] }
+bdk_electrum = "0.3.0"
+bdk_file_store = "0.2.0"
 bitcoin = "0.29.1"
 dlc = "0.4.0"
 dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc.git" }

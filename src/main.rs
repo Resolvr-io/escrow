@@ -43,7 +43,8 @@ async fn main() {
         HashMap::new();
     // TODO: Add oracles.
 
-    let bdk_dlc_blockchain = Arc::from(BdkDlcBlockchain::new());
+    let client = Client::new("ssl://electrum.blockstream.info:60002").unwrap();
+    let bdk_dlc_blockchain = Arc::from(BdkDlcBlockchain::new(client));
 
     let time_provider = Arc::new(dlc_manager::SystemTimeProvider {});
 
