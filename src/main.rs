@@ -1,22 +1,25 @@
-mod bdk_dlc_blockchain;
-mod bdk_dlc_wallet;
 mod resolvr_oracle;
 
-use bdk_dlc_blockchain::BdkDlcBlockchain;
-use bdk_dlc_wallet::BdkDlcWallet;
-use bdk_electrum::electrum_client::Client;
+use bitcoin_rpc_provider::BitcoinCoreProvider;
 use dlc_manager::SystemTimeProvider;
 use std::collections::hash_map::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-pub type ResolvrDlcManager = dlc_manager::manager::Manager<
-    Arc<BdkDlcWallet>,
-    Arc<BdkDlcBlockchain>,
+struct BitcoinCoreConfig {
+    host: String,
+    port: u16,
+    rpc_user: String,
+    rpc_password: String,
+}
+
+pub type ResolvrDlcManager<'a> = dlc_manager::manager::Manager<
+    Arc<BitcoinCoreProvider>,
+    Arc<BitcoinCoreProvider>,
     Box<dlc_sled_storage_provider::SledStorageProvider>,
     Arc<resolvr_oracle::ResolvrOracle>,
     Arc<SystemTimeProvider>,
-    Arc<BdkDlcBlockchain>,
+    Arc<BitcoinCoreProvider>,
 >;
 
 #[tokio::main]
@@ -43,37 +46,66 @@ async fn main() {
         HashMap::new();
     // TODO: Add oracles.
 
-    let client = Client::new("ssl://electrum.blockstream.info:60002").unwrap();
-    let bdk_dlc_blockchain = Arc::from(BdkDlcBlockchain::new(client));
+    // TODO: Load config from file/env vars/command line.
+    let config = BitcoinCoreConfig {
+        host: String::from("127.0.0.1"),
+        port: 18446,
+        rpc_user: String::from("polaruser"),
+        rpc_password: String::from("polarpass"),
+    };
+
+    let alice_bitcoind_provider = Arc::new(
+        bitcoin_rpc_provider::BitcoinCoreProvider::new(
+            config.host.clone(),
+            config.port,
+            Some(String::from("alice")),
+            config.rpc_user.clone(),
+            config.rpc_password.clone(),
+        )
+        .expect("Error creating BitcoinCoreProvider"),
+    );
+
+    let bob_bitcoind_provider = Arc::new(
+        bitcoin_rpc_provider::BitcoinCoreProvider::new(
+            config.host,
+            config.port,
+            Some(String::from("bob")),
+            config.rpc_user,
+            config.rpc_password,
+        )
+        .expect("Error creating BitcoinCoreProvider"),
+    );
 
     let time_provider = Arc::new(dlc_manager::SystemTimeProvider {});
 
+    println!("Creating Alice's DLC manager...");
     let alice_dlc_manager: Arc<Mutex<ResolvrDlcManager>> = Arc::new(Mutex::new(
         dlc_manager::manager::Manager::new(
-            Arc::from(BdkDlcWallet::new()),
-            bdk_dlc_blockchain.clone(),
+            alice_bitcoind_provider.clone(),
+            alice_bitcoind_provider.clone(),
             Box::new(
                 dlc_sled_storage_provider::SledStorageProvider::new(&alice_storage_path)
                     .expect("Error creating storage."),
             ),
             oracles.clone(),
             time_provider.clone(),
-            bdk_dlc_blockchain.clone(),
+            alice_bitcoind_provider,
         )
         .expect("Could not create manager."),
     ));
 
+    println!("Creating Bob's DLC manager...");
     let bob_dlc_manager: Arc<Mutex<ResolvrDlcManager>> = Arc::new(Mutex::new(
         dlc_manager::manager::Manager::new(
-            Arc::from(BdkDlcWallet::new()),
-            bdk_dlc_blockchain.clone(),
+            bob_bitcoind_provider.clone(),
+            bob_bitcoind_provider.clone(),
             Box::new(
                 dlc_sled_storage_provider::SledStorageProvider::new(&bob_storage_path)
                     .expect("Error creating storage."),
             ),
             oracles,
             time_provider,
-            bdk_dlc_blockchain,
+            bob_bitcoind_provider,
         )
         .expect("Could not create manager."),
     ));
