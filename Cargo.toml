@@ -4,13 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bdk = { git = "https://github.com/bitcoindevkit/bdk", features = ["keys-bip39"] }
-bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk" }
-bdk_file_store = { git = "https://github.com/bitcoindevkit/bdk" }
-bitcoin = "0.29.1"
-dlc = "0.4.0"
-dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc.git" }
-dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc.git" }
-dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc.git" }
+bitcoin = "0.29.2"
+bitcoin-rpc-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
+dlc = { git = "https://github.com/tvolk131/rust-dlc.git" }
+dlc-manager = { git = "https://github.com/tvolk131/rust-dlc.git" }
+dlc-messages = { git = "https://github.com/tvolk131/rust-dlc.git" }
+dlc-sled-storage-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
 lightning = "0.0.116"
 tokio = { version = "1.33.0", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
