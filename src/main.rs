@@ -1,10 +1,18 @@
 mod resolvr_oracle;
 
+use bitcoin::XOnlyPublicKey;
 use bitcoin_rpc_provider::BitcoinCoreProvider;
+use dlc::EnumerationPayout;
+use dlc_manager::contract::contract_input::{ContractInput, ContractInputInfo, OracleInput};
+use dlc_manager::contract::enum_descriptor::EnumDescriptor;
+use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::SystemTimeProvider;
 use std::collections::hash_map::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
+
+const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "bounty complete";
+const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "bounty insufficient";
 
 struct BitcoinCoreConfig {
     host: String,
@@ -109,4 +117,49 @@ async fn main() {
         )
         .expect("Could not create manager."),
     ));
+}
+
+/// Create a DLC contract template for a bounty.
+fn create_bounty_contract(
+    bounty_amount_sats: u64,
+    taker_collateral_sats: u64,
+    fee_rate_sats_per_vbyte: u64,
+    oracle_public_key: XOnlyPublicKey,
+    oracle_bounty_event_id: String,
+) -> ContractInput {
+    ContractInput {
+        offer_collateral: bounty_amount_sats,
+        accept_collateral: taker_collateral_sats,
+        fee_rate: fee_rate_sats_per_vbyte,
+        contract_infos: vec![ContractInputInfo {
+            contract_descriptor: ContractDescriptor::Enum(EnumDescriptor {
+                outcome_payouts: vec![
+                    // If the bounty is completed, the taker gets the bounty
+                    // amount plus their collateral back.
+                    EnumerationPayout {
+                        outcome: BOUNTY_COMPLETE_ORACLE_MESSAGE.to_string(),
+                        payout: dlc::Payout {
+                            offer: 0,
+                            accept: bounty_amount_sats + taker_collateral_sats,
+                        },
+                    },
+                    // If the bounty is not completed, the maker gets the bounty
+                    // back plus the taker's collateral as compensation for their
+                    // time.
+                    EnumerationPayout {
+                        outcome: BOUNTY_INSUFFICIENT_ORACLE_MESSAGE.to_string(),
+                        payout: dlc::Payout {
+                            offer: bounty_amount_sats + taker_collateral_sats,
+                            accept: 0,
+                        },
+                    },
+                ],
+            }),
+            oracles: OracleInput {
+                public_keys: vec![oracle_public_key],
+                event_id: oracle_bounty_event_id,
+                threshold: 1,
+            },
+        }],
+    }
 }
