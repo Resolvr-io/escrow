@@ -10,10 +10,10 @@ Resolvr is designed from the ground up to be decentralized and resilient, and ou
 Let's assume a maker has posted a bounty, a taker has accepted it, and they've both decided to rely on an escrow. From there, the bounty follows these steps:
 
 1. The maker and taker agree on an escrow agent, and the escrow agent agrees to adjudicate the bounty (more on that in the [Escrow Agent](#escrow-agent) section).
-2. The maker and taker create an on-chain contract that grants the escrow agent adjudication power (more on that in the [Funding Contract](#funding-contract) section).
+2. The maker and taker create an on-chain contract that grants adjudication power to the escrow agent (more on that in the [Funding Contract](#funding-contract) section).
 3. The taker completes the bounty and submits their work to the escrow agent for review.
 4. The escrow agent signs and publishes an event stating that the bounty was or wasn't completed.
-5. This signed event is used to unlock the on-chain DLC.
+5. This signed event is used to unlock the on-chain contract and direct the funds to the appropriate party.
 
 ### Escrow Agent
 Perhaps you're asking yourself, how does putting all the trust in an escrow agent solve the problem? Aren't we just shifting the trust from one party to another? If the escrow agent was a single entity then this would be the case. However, Resolvr's escrow system uses Fedimint as the escrow agent. Fedimint is a system for running federated applications through entities called federations. Federations are able to perform actions by the federation nodes reaching consensus. This allows for any individual node to be offline or even malicious and yet unable to disrupt the rest of the nodes in the federation. We've built a module for the Fedimint platform that allows for federated adjudication of escrow contracts. Any federation running this module is able to act as a Resolvr escrow agent.
@@ -21,7 +21,7 @@ Perhaps you're asking yourself, how does putting all the trust in an escrow agen
 ### Funding Contract
 The funding contract used for Resolvr escrow is a [Discreet Log Contract](https://bitcoinops.org/en/topics/discreet-log-contracts/). While a 2-of-3 multisig could achieve similar behavior, DLCs provide a few key benefits that make them a better choice as an escrow system.
 
-* **On-Chain Privacy:** DLCs appear on-chain as simple 2-of-2 multisigs similar to a Lightning channel, making it hard to see what's happening.
+* **On-Chain Privacy:** DLCs appear on-chain as simple 2-of-2 multisigs similar to a Lightning channel, making it hard to see what's happening - or even that a DLC is being used.
 
 * **Escrow Privacy:** DLCs protect privacy by decoupling the escrow agent from the contracts it settles. The escrow agent has no knowledge of what contracts it is resolving on-chain.
 
@@ -32,7 +32,7 @@ The funding contract used for Resolvr escrow is a [Discreet Log Contract](https:
 ### Contract resolution
 Once a federation is chosen as the escrow agent for a bounty contract, it has the responsibility to deem a bounty as completed or uncompleted according to the bounty description, with the decision being backed by on-chain enforceability. The bounty description is written in natural language by the maker and interpreted by the taker and escrow agent. This allows for a lot of flexibility to specify the conditions at which a contract should be resolved or terminated. It also means that it should be extremely thorough and detailed to limit the possibility for misinterpretation.
 
-Once a bounty submission is provided to the escrow agent by the taker, it is reviewed according to the bounty description. If the escrow agent deems the submission sufficient, it broadcasts an event signature that unlocks the DLC to the taker's address. If the escrow agent deems the submission insufficient, it has a choice to make. It can give the taker feedback and request changes, or it can simply broadcast an event signature that unlocks the DLC to the maker's address, effectively cancelling the contract. We currently don't have a standard for when either option is appropriate. This could be arranged in the bounty description, it could be published by the escrow agent as a standard set of rules it abides by, or it could even be coordinated by all three parties for complex or high-value bounties.
+Once a bounty submission is provided to the escrow agent by the taker, it is reviewed according to the bounty description. If the escrow agent deems the submission sufficient, it broadcasts an event signature that unlocks the DLC to the taker's address. If the escrow agent deems the submission insufficient, it has a choice to make. It can provide feedback to the taker and request changes, or it can simply broadcast an event signature that unlocks the DLC to the maker's address, effectively cancelling the contract. We currently don't have a standard for when either option is appropriate. This could be arranged in the bounty description, it could be published by the escrow agent as a standard set of rules it abides by, or it could even be coordinated by all three parties for complex or high-value bounties.
 
 Once the escrow agent broadcasts an event signature for the bounty, that signature can be used to tweak one of the DLC spending transactions to make it valid. This tweaking can be done by the maker or the taker, and the transaction can then be broadcasted to the Bitcoin network.
 
