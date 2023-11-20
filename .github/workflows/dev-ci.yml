@@ -18,8 +18,13 @@ jobs:
         override: true
         components: rustfmt, clippy
     - name: Compile
-      run: cargo check
+      run: |
+        cd dlc_test
+        cargo check
+        cd ..
     - name: Validate Formatting
       run: |
+        cd dlc_test
         cargo fmt -- --check
+        cd ..
       # TODO: Enable clippy by adding a line with `cargo clippy -- -D warnings`
