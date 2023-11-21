@@ -1,5 +1,25 @@
 # Resolvr Escrow
 
+Resolvr Escrow is a desktop app built on [Tauri](https://tauri.app/), with a frontend powered by [React](https://react.dev/) and a backend powered by [Rust](https://www.rust-lang.org/). Currently this app handles coordination, execution, and resolution of Bitcoin escrow contracts. We plan on eventually supporting all features currently accessible on our [bounty website](https://resolvr-io.vercel.app/) within this app as well.
+
+## Recommended IDE Setup
+
+For the best experience, use [VS Code](https://code.visualstudio.com/) with the following plugins:
+
+* [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
+* [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+## Running in development mode
+
+### Prerequisites
+
+You will need to have Rust and NodeJS/NPM installed to run the app. You can install Rust [here](https://www.rust-lang.org/tools/install) and NodeJS/NPM [here](https://nodejs.org/en/download/).
+
+### Commands
+
+1. Install JS/TS dependencies by running `npm i`.
+2. Start the app by running `npm run tauri dev`. This enables hot module reloading for the React app.
+
 ## Background
 Resolvr is a Bitcoin-native dispute resolution service for FOSS bounties, enabling "makers" to post rewards for bounties and "takers" to accept and complete them. For any bounty, the maker and taker both need reasonable assurance that they won't be cheated by the other party. This assurance may be possible simply through reputation of the maker/taker or a prior relationship between the two parties. However, in the rather likely event that this trust/relationship does not exist, an escrow system can be used to provide the needed assurance to both parties by introducing a third entity, the "escrow agent". The escrow agent is given the power to adjudicate bounty completion and control the flow of funds with on-chain enforceability.
 
