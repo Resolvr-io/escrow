@@ -17,9 +17,50 @@ jobs:
         toolchain: stable
         override: true
         components: rustfmt, clippy
-    - name: Compile
-      run: cargo check
-    - name: Validate Formatting
+    - name: Check Rust Code
       run: |
+        cd dlc_test
+        cargo check
+        cd ..
+    - name: Validate Formatting for Rust Code
+      run: |
+        cd dlc_test
         cargo fmt -- --check
-      # TODO: Enable clippy by adding a line with `cargo clippy -- -D warnings`
+        cargo clippy -- -D warnings
+        cd ..
+  test-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-20.04, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - name: Install Rust Toolchain (stable)
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install dependencies (Ubuntu only)
+      if: matrix.platform == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+    - name: Check Rust Code
+      run: |
+        cd src-tauri
+        cargo check
+        cd ..
+    - name: Validate Formatting for Rust Code
+      run: |
+        cd src-tauri
+        cargo fmt -- --check
+        cargo clippy -- -D warnings
+        cd ..
+    - name: Install frontend dependencies
+      run: npm install
+    - name: Build Tauri app
+      uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
