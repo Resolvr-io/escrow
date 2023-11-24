@@ -1,19 +1,10 @@
 // Prevents additional console window on Windows in release. DO NOT REMOVE!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod contract;
 mod resolvr_oracle;
 
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::XOnlyPublicKey;
 use bitcoin_rpc_provider::BitcoinCoreProvider;
-use contract::JsonContract;
-use dlc::EnumerationPayout;
-use dlc_manager::contract::contract_input::{ContractInput, ContractInputInfo, OracleInput};
-use dlc_manager::contract::enum_descriptor::EnumDescriptor;
-use dlc_manager::contract::{Contract, ContractDescriptor};
 use dlc_manager::Oracle;
-use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
 use escrow_agent_messages::EscrowAgent;
@@ -23,9 +14,6 @@ use resolvr_oracle::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::DerefMut;
-use std::str::FromStr;
-use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 
 use keyring::Entry;
@@ -295,51 +283,58 @@ struct BitcoinCoreConfig {
     rpc_password: String,
 }
 
-type ResolvrDlcManager = dlc_manager::manager::Manager<
+type ResolvrDlcManager<'a> = dlc_manager::manager::Manager<
     Arc<BitcoinCoreProvider>,
     Arc<BitcoinCoreProvider>,
-    Arc<SledStorageProvider>,
-    Arc<NostrNip4ResolvrOracle>,
+    Box<SledStorageProvider>,
+    Arc<ResolvrOracle>,
     Arc<SystemTimeProvider>,
     Arc<BitcoinCoreProvider>,
 >;
 
-#[tokio::main]
-async fn main() {
-    let context = tauri::generate_context!();
-    let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config())
-        .expect("Error getting app local data dir.");
+fn main() {
+    let bitcoin_core_config = BitcoinCoreConfig {
+        host: String::from("127.0.0.1"),
+        port: 18448,
+        rpc_user: String::from("polaruser"),
+        rpc_password: String::from("polarpass"),
+    };
 
-    // TODO: Set the nPub to our hosted oracle (once it exists).
-    let oracle = Arc::from(NostrNip4ResolvrOracle::new_from_npub());
-
-    let dlc_msg_handler = Arc::from(NostrNip4DlcMessageHandler::new());
-
-    let dlc_storage_provider: Arc<SledStorageProvider> = Arc::new(
-        SledStorageProvider::new(&format!(
-            "{}/dlc_db_hackathon",
-            app_local_data_dir
-                .to_str()
-                .expect("Error converting app local data dir to string.")
-        ))
-        .expect("Error creating DLC storage."),
+    let bitcoind_provider = Arc::new(
+        bitcoin_rpc_provider::BitcoinCoreProvider::new(
+            bitcoin_core_config.host.clone(),
+            bitcoin_core_config.port,
+            None,
+            bitcoin_core_config.rpc_user.clone(),
+            bitcoin_core_config.rpc_password.clone(),
+        )
+        .expect("Error creating BitcoinCoreProvider."),
     );
 
-    let dlc_manager_or: Arc<Mutex<Option<ResolvrDlcManager>>> = Arc::new(Mutex::new(None));
+    let mut oracles: HashMap<bitcoin::XOnlyPublicKey, Arc<ResolvrOracle>> = HashMap::new();
+    let oracle = Arc::from(ResolvrOracle::new_from_generated_keypair());
+    oracles.insert(oracle.get_public_key(), oracle.clone());
 
-    let dlc_msg_handler_clone = dlc_msg_handler.clone();
-    let dlc_manager_or_clone = dlc_manager_or.clone();
-    tokio::task::spawn(async move {
-        loop {
-            if let Some(dlc_manager) = dlc_manager_or_clone.lock().unwrap().as_mut() {
-                if let Err(e) = process_incoming_dlc_msgs(dlc_manager, &dlc_msg_handler_clone) {
-                    // TODO: Handle error.
-                    println!("Error processing incoming DLC messages: {}", e);
-                };
-            };
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-    });
+    let context = tauri::generate_context!();
+    let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config()).unwrap();
+
+    let dlc_manager: Arc<Mutex<ResolvrDlcManager>> = Arc::new(Mutex::new(
+        dlc_manager::manager::Manager::new(
+            bitcoind_provider.clone(),
+            bitcoind_provider.clone(),
+            Box::new(
+                SledStorageProvider::new(&format!(
+                    "{}/dlc_db_hackathon",
+                    app_local_data_dir.to_str().unwrap()
+                ))
+                .expect("Error creating DLC storage."),
+            ),
+            oracles,
+            Arc::new(dlc_manager::SystemTimeProvider {}),
+            bitcoind_provider,
+        )
+        .expect("Error creating DLC manager."),
+    ));
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -360,49 +355,4 @@ async fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .run(context)
         .expect("Error while running Tauri application.");
-}
-
-/// Create a DLC contract template for a bounty.
-fn create_bounty_contract(
-    bounty_amount_sats: u64,
-    taker_collateral_sats: u64,
-    fee_rate_sats_per_vbyte: u64,
-    oracle_public_key: XOnlyPublicKey,
-    oracle_event_id: String,
-) -> ContractInput {
-    ContractInput {
-        offer_collateral: bounty_amount_sats,
-        accept_collateral: taker_collateral_sats,
-        fee_rate: fee_rate_sats_per_vbyte,
-        contract_infos: vec![ContractInputInfo {
-            contract_descriptor: ContractDescriptor::Enum(EnumDescriptor {
-                outcome_payouts: vec![
-                    // If the bounty is completed, the taker gets the bounty
-                    // amount plus their collateral back.
-                    EnumerationPayout {
-                        outcome: BOUNTY_COMPLETE_ORACLE_MESSAGE.to_string(),
-                        payout: dlc::Payout {
-                            offer: 0,
-                            accept: bounty_amount_sats + taker_collateral_sats,
-                        },
-                    },
-                    // If the bounty is not completed, the maker gets the bounty
-                    // back plus the taker's collateral as compensation for their
-                    // time.
-                    EnumerationPayout {
-                        outcome: BOUNTY_INSUFFICIENT_ORACLE_MESSAGE.to_string(),
-                        payout: dlc::Payout {
-                            offer: bounty_amount_sats + taker_collateral_sats,
-                            accept: 0,
-                        },
-                    },
-                ],
-            }),
-            oracles: OracleInput {
-                public_keys: vec![oracle_public_key],
-                event_id: oracle_event_id,
-                threshold: 1,
-            },
-        }],
-    }
 }

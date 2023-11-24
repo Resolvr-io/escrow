@@ -20,11 +20,11 @@ dlc-sled-storage-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
 escrow_agent_messages = { path = "../escrow_agent_messages" }
 hex = "0.4.3"
 keyring = "2"
+mocks = { git = "https://github.com/tvolk131/rust-dlc.git" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "1.5", features = ["shell-open"] }
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
-tokio = { version = "1.34.0", features = ["time"] }
 
 [features]
 # This feature is used for production builds or when `devPath` points to the
