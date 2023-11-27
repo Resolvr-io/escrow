@@ -1,13 +1,11 @@
-use bitcoin::secp256k1::{
-    rand::{thread_rng, RngCore},
-    Message,
-};
+use bitcoin::secp256k1::rand::{thread_rng, RngCore};
 use dlc_manager::Oracle;
 use dlc_messages::oracle_msgs::{
-    EnumEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation, OracleEvent,
+    EnumEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
 };
-use lightning::util::ser::Writeable;
-use std::{collections::HashMap, sync::Mutex, time::SystemTime};
+use mocks::mock_oracle_provider::MockOracle;
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 pub const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "BOUNTY_COMPLETE";
 pub const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "BOUNTY_INSUFFICIENT";
@@ -27,24 +25,13 @@ impl ToString for BountyOutcome {
 }
 
 pub struct ResolvrOracle {
-    /// The private key of the oracle.
-    private_key: bitcoin::secp256k1::SecretKey,
-
-    /// The public key of the oracle.
-    public_key: bitcoin::secp256k1::PublicKey,
-
-    /// Map of event ID to announcement and attestation (if it has been made).
-    events: Mutex<HashMap<String, (OracleAnnouncement, Option<OracleAttestation>)>>,
+    mock_oracle: Arc<Mutex<MockOracle>>,
 }
 
 impl ResolvrOracle {
     pub fn new_from_generated_keypair() -> ResolvrOracle {
-        let secp = bitcoin::secp256k1::Secp256k1::new();
-        let (private_key, public_key) = secp.generate_keypair(&mut thread_rng());
         ResolvrOracle {
-            private_key,
-            public_key,
-            events: Mutex::from(HashMap::new()),
+            mock_oracle: Arc::from(Mutex::from(MockOracle::new())),
         }
     }
 
@@ -52,45 +39,23 @@ impl ResolvrOracle {
     pub fn create_announcement(&self) -> String {
         let event_id = Self::generate_new_event_id();
 
-        let oracle_event = OracleEvent {
-            oracle_nonces: vec![Self::generate_nonce()],
-            event_maturity_epoch: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as u32
-                + 10,
-            event_descriptor: EventDescriptor::EnumEvent(EnumEventDescriptor {
-                outcomes: vec![
-                    BOUNTY_COMPLETE_ORACLE_MESSAGE.to_string(),
-                    BOUNTY_INSUFFICIENT_ORACLE_MESSAGE.to_string(),
-                ],
-            }),
-            event_id: event_id.clone(),
-        };
+        let event_descriptor = EventDescriptor::EnumEvent(EnumEventDescriptor {
+            outcomes: vec![
+                BOUNTY_COMPLETE_ORACLE_MESSAGE.to_string(),
+                BOUNTY_INSUFFICIENT_ORACLE_MESSAGE.to_string(),
+            ],
+        });
 
-        let announcement_signature = {
-            let mut event_hex = Vec::new();
-            oracle_event
-                .write(&mut event_hex)
-                .expect("Error writing oracle event");
+        let maturity_epoch = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32
+            + 10;
 
-            let msg =
-                Message::from_hashed_data::<bitcoin::secp256k1::hashes::sha256::Hash>(&event_hex);
-
-            let secp = bitcoin::secp256k1::Secp256k1::new();
-            secp.sign_schnorr(&msg, &self.private_key.keypair(&secp))
-        };
-
-        let announcement = OracleAnnouncement {
-            announcement_signature,
-            oracle_public_key: self.get_public_key(),
-            oracle_event,
-        };
-
-        self.events
+        self.mock_oracle
             .lock()
             .unwrap()
-            .insert(event_id.clone(), (announcement, None));
+            .add_event(&event_id, &event_descriptor, maturity_epoch);
         event_id
     }
 
@@ -101,44 +66,10 @@ impl ResolvrOracle {
         event_id: &str,
         outcome: BountyOutcome,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (announcement, attestation) = self
-            .events
+        self.mock_oracle
             .lock()
             .unwrap()
-            .get(event_id)
-            .ok_or("Event ID not found.")?
-            .clone();
-
-        if attestation.is_some() {
-            return Err("Event has already been attested.".into());
-        }
-
-        // TODO - Ensure this is the correct way to produce the event signature.
-        let outcome_signature = {
-            let mut event_hex = Vec::new();
-            outcome
-                .to_string()
-                .write(&mut event_hex)
-                .expect("Error writing oracle event");
-
-            let msg =
-                Message::from_hashed_data::<bitcoin::secp256k1::hashes::sha256::Hash>(&event_hex);
-
-            let secp = bitcoin::secp256k1::Secp256k1::new();
-            secp.sign_schnorr(&msg, &self.private_key.keypair(&secp))
-        };
-
-        let attestation = OracleAttestation {
-            oracle_public_key: self.get_public_key(),
-            signatures: vec![outcome_signature],
-            outcomes: vec![outcome.to_string()],
-        };
-
-        self.events
-            .lock()
-            .unwrap()
-            .insert(event_id.to_string(), (announcement, Some(attestation)));
-
+            .add_attestation(event_id, &[outcome.to_string()]);
         Ok(())
     }
 
@@ -149,44 +80,24 @@ impl ResolvrOracle {
         rng.fill_bytes(&mut event_id);
         hex::encode(event_id)
     }
-
-    /// Generates a new unique nonce.
-    fn generate_nonce() -> bitcoin::XOnlyPublicKey {
-        let secp = bitcoin::secp256k1::Secp256k1::new();
-        let (_private_key, public_key) = secp.generate_keypair(&mut thread_rng());
-        public_key.x_only_public_key().0
-    }
 }
 
 impl Oracle for ResolvrOracle {
     fn get_public_key(&self) -> bitcoin::XOnlyPublicKey {
-        self.public_key.x_only_public_key().0
+        self.mock_oracle.lock().unwrap().get_public_key()
     }
 
     fn get_announcement(
         &self,
         event_id: &str,
     ) -> Result<OracleAnnouncement, dlc_manager::error::Error> {
-        return match self.events.lock().unwrap().get(event_id) {
-            Some((announcement, _)) => Ok(announcement.clone()),
-            None => Err(dlc_manager::error::Error::OracleError(
-                "Event ID not found.".to_string(),
-            )),
-        };
+        self.mock_oracle.lock().unwrap().get_announcement(event_id)
     }
 
     fn get_attestation(
         &self,
         event_id: &str,
     ) -> Result<OracleAttestation, dlc_manager::error::Error> {
-        return match self.events.lock().unwrap().get(event_id) {
-            Some((_, Some(attestation))) => Ok(attestation.clone()),
-            Some((_, None)) => Err(dlc_manager::error::Error::OracleError(
-                "Attestation not found.".to_string(),
-            )),
-            None => Err(dlc_manager::error::Error::OracleError(
-                "Event ID not found.".to_string(),
-            )),
-        };
+        self.mock_oracle.lock().unwrap().get_attestation(event_id)
     }
 }
