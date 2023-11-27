@@ -468,6 +468,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mocks"
+version = "0.1.0"
+source = "git+https://github.com/tvolk131/rust-dlc.git#5f66aefc5b5467115c1e572bcb2d7306c8f23f78"
+dependencies = [
+ "bitcoin",
+ "dlc",
+ "dlc-manager",
+ "dlc-messages",
+ "lightning",
+ "secp256k1-zkp",
+ "simple-wallet",
+]
+
+[[package]]
 name = "num_cpus"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -598,6 +612,7 @@ dependencies = [
  "dlc-sled-storage-provider",
  "hex",
  "lightning",
+ "mocks",
  "tokio",
 ]
 

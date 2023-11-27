@@ -10,6 +10,7 @@ dlc = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-manager = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-messages = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-sled-storage-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
+mocks = { git = "https://github.com/tvolk131/rust-dlc.git" }
 hex = "0.4.3"
 lightning = "0.0.116"
 tokio = { version = "1.33.0", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
