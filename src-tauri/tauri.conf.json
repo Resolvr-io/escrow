@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "resolvr-desktop",
+    "productName": "Resolvr Escrow",
     "version": "0.0.0"
   },
   "tauri": {
