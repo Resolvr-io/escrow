@@ -1,3 +1,4 @@
+mod oracle;
 mod resolvr_oracle;
 
 use bitcoin::XOnlyPublicKey;
@@ -46,8 +47,14 @@ async fn main() {
         std::env::current_dir().unwrap().to_str().unwrap(),
         "data/bob"
     );
+    let oracle_storage_path = format!(
+        "{}/{}",
+        std::env::current_dir().unwrap().to_str().unwrap(),
+        "data/oracle"
+    );
     fs::create_dir_all(&alice_storage_path).expect("Error creating storage directory.");
     fs::create_dir_all(&bob_storage_path).expect("Error creating storage directory.");
+    fs::create_dir_all(&oracle_storage_path).expect("Error creating storage directory.");
     // let offers_path = format!("{}/{}", config.storage_dir_path, "offers");
     // fs::create_dir_all(&offers_path).expect("Error creating offered contract directory");
 
@@ -55,7 +62,7 @@ async fn main() {
     // client uses reqwest in blocking mode to satisfy the non async oracle interface
     // so we need to use `spawn_blocking`.
     let mut oracles: HashMap<bitcoin::XOnlyPublicKey, Arc<ResolvrOracle>> = HashMap::new();
-    let oracle = Arc::from(ResolvrOracle::new_from_generated_keypair());
+    let oracle = Arc::from(ResolvrOracle::new(&oracle_storage_path));
     oracles.insert(oracle.get_public_key(), oracle.clone());
 
     // TODO: Load configs from file/env vars/command line.

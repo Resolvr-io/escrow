@@ -3,9 +3,10 @@ use dlc_manager::Oracle;
 use dlc_messages::oracle_msgs::{
     EnumEventDescriptor, EventDescriptor, OracleAnnouncement, OracleAttestation,
 };
-use mocks::mock_oracle_provider::MockOracle;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
+
+use crate::oracle::SledOracle;
 
 pub const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "BOUNTY_COMPLETE";
 pub const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "BOUNTY_INSUFFICIENT";
@@ -25,13 +26,13 @@ impl ToString for BountyOutcome {
 }
 
 pub struct ResolvrOracle {
-    mock_oracle: Arc<Mutex<MockOracle>>,
+    mock_oracle: Arc<Mutex<SledOracle>>,
 }
 
 impl ResolvrOracle {
-    pub fn new_from_generated_keypair() -> ResolvrOracle {
+    pub fn new(path: &str) -> ResolvrOracle {
         ResolvrOracle {
-            mock_oracle: Arc::from(Mutex::from(MockOracle::new())),
+            mock_oracle: Arc::from(Mutex::from(SledOracle::new(path).unwrap())),
         }
     }
 
