@@ -1,26 +1,19 @@
 {
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build",
     "devPath": "http://localhost:1420",
     "distDir": "../dist"
   },
   "package": {
-    "productName": "Resolvr Escrow",
+    "productName": "escrow",
     "version": "0.0.0"
   },
   "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      }
-    },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "io.resolvr.app",
+      "identifier": "com.tauri.dev",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -36,10 +29,15 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "Resolvr Escrow",
+        "title": "escrow",
         "width": 800,
         "height": 600
       }
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
   }
 }
