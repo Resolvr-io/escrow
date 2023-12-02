@@ -1,21 +1,17 @@
-const contracts = [
-  {
-    name: "Contract 1",
-    description: "This is a description",
-    status: "sent",
-    date: "2021-01-01",
-  },
-  {
-    name: "Contract 1",
-    description: "This is a description",
-    status: "sent",
-    date: "2021-01-01",
-  },
+import Contract from "./contract";
+import contracts from "../../static/contracts";
+import { Link } from "react-router-dom";
 
-  {
-    name: "Contract 1",
-    description: "This is a description",
-    status: "sent",
-    date: "2021-01-01",
-  },
-];
+export default function Contracts() {
+  return (
+    <div className="space-y-4">
+      {contracts.map((contract) => {
+        return (
+          <Link className="block" to={`contracts/${contract.id}`}>
+            <Contract contract={contract}></Contract>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}

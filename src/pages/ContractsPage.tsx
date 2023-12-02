@@ -1,4 +1,5 @@
 import { Button } from "~/components/ui/button";
+import Contracts from "~/components/contracts/contracts";
 import {
   Card,
   CardContent,
@@ -34,16 +35,6 @@ export default function ContractsPage() {
   return (
     <>
       <div className="flex-col md:flex">
-        <div className="border-b">
-          <div className="flex h-16 items-center px-4">
-            {/* <TeamSwitcher /> */}
-            {/* <MainNav className="mx-6" /> */}
-            <div className="ml-auto flex items-center space-x-4">
-              {/* <Search /> */}
-              {/* <UserNav /> */}
-            </div>
-          </div>
-        </div>
         <div className="flex-1 space-y-4 p-8 pt-6">
           <div className="flex items-center justify-between space-y-2">
             <h2 className="text-3xl font-bold tracking-tight">Contracts</h2>
@@ -68,15 +59,7 @@ export default function ContractsPage() {
             </TabsList>
             <TabsContent value="overview" className="space-y-4">
               <div className="flex flex-col">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Overview</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pl-2">
-                    hi
-                    {/* <Overview /> */}
-                  </CardContent>
-                </Card>
+                <Contracts></Contracts>
               </div>
             </TabsContent>
             <TabsContent value="sent" className="space-y-4">
