@@ -17,9 +17,9 @@ export default function DashboardPage() {
         <Route
           path="create"
           element={
-            <ProtectedRoute>
-              <CreateContractPage />
-            </ProtectedRoute>
+            // <ProtectedRoute>
+            <CreateContractPage />
+            // </ProtectedRoute>
           }
         />
         <Route path="/login" element={<LoginPage />} />
