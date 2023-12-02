@@ -1,19 +1,21 @@
 // Prevents additional console window on Windows in release. DO NOT REMOVE!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod contract;
 mod resolvr_oracle;
 
+use bitcoin::XOnlyPublicKey;
 use bitcoin_rpc_provider::BitcoinCoreProvider;
-use dlc_manager::Oracle;
+use contract::JsonContract;
+use dlc_manager::contract::Contract;
+use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
-use escrow_agent_messages::EscrowAgent;
-use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
-use resolvr_oracle::{
-    NostrNip4ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
-};
+use resolvr_oracle::ResolvrOracle;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::DerefMut;
+use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 
 use keyring::Entry;
@@ -66,8 +68,8 @@ fn connect_to_bitcoin_core(
         Err(e) => return Err(format!("Error creating Bitcoin Core provider: {}", e)),
     };
 
-    let mut oracles: HashMap<XOnlyPublicKey, Arc<NostrNip4ResolvrOracle>> = HashMap::new();
-    oracles.insert(oracle.get_public_key(), oracle.inner().clone());
+    // TODO: Add hardcoded Resolvr oracle.
+    let oracles: HashMap<XOnlyPublicKey, Arc<ResolvrOracle>> = HashMap::new();
 
     let mut dlc_manager_or: MutexGuard<Option<ResolvrDlcManager>> = dlc_manager_or.lock().unwrap();
     let binding: &mut Option<ResolvrDlcManager> = dlc_manager_or.deref_mut();
@@ -286,55 +288,28 @@ struct BitcoinCoreConfig {
 type ResolvrDlcManager<'a> = dlc_manager::manager::Manager<
     Arc<BitcoinCoreProvider>,
     Arc<BitcoinCoreProvider>,
-    Box<SledStorageProvider>,
+    Arc<SledStorageProvider>,
     Arc<ResolvrOracle>,
     Arc<SystemTimeProvider>,
     Arc<BitcoinCoreProvider>,
 >;
 
 fn main() {
-    let bitcoin_core_config = BitcoinCoreConfig {
-        host: String::from("127.0.0.1"),
-        port: 18448,
-        rpc_user: String::from("polaruser"),
-        rpc_password: String::from("polarpass"),
-    };
+    let context = tauri::generate_context!();
+    let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config())
+        .expect("Error getting app local data dir.");
 
-    let bitcoind_provider = Arc::new(
-        bitcoin_rpc_provider::BitcoinCoreProvider::new(
-            bitcoin_core_config.host.clone(),
-            bitcoin_core_config.port,
-            None,
-            bitcoin_core_config.rpc_user.clone(),
-            bitcoin_core_config.rpc_password.clone(),
-        )
-        .expect("Error creating BitcoinCoreProvider."),
+    let dlc_storage_provider: Arc<SledStorageProvider> = Arc::new(
+        SledStorageProvider::new(&format!(
+            "{}/dlc_db_hackathon",
+            app_local_data_dir
+                .to_str()
+                .expect("Error converting app local data dir to string.")
+        ))
+        .expect("Error creating DLC storage."),
     );
 
-    let mut oracles: HashMap<bitcoin::XOnlyPublicKey, Arc<ResolvrOracle>> = HashMap::new();
-    let oracle = Arc::from(ResolvrOracle::new_from_generated_keypair());
-    oracles.insert(oracle.get_public_key(), oracle.clone());
-
-    let context = tauri::generate_context!();
-    let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config()).unwrap();
-
-    let dlc_manager: Arc<Mutex<ResolvrDlcManager>> = Arc::new(Mutex::new(
-        dlc_manager::manager::Manager::new(
-            bitcoind_provider.clone(),
-            bitcoind_provider.clone(),
-            Box::new(
-                SledStorageProvider::new(&format!(
-                    "{}/dlc_db_hackathon",
-                    app_local_data_dir.to_str().unwrap()
-                ))
-                .expect("Error creating DLC storage."),
-            ),
-            oracles,
-            Arc::new(dlc_manager::SystemTimeProvider {}),
-            bitcoind_provider,
-        )
-        .expect("Error creating DLC manager."),
-    ));
+    let dlc_manager_or: Arc<Mutex<Option<ResolvrDlcManager>>> = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
