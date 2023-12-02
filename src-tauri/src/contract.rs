@@ -1,13 +1,5 @@
-use dlc_manager::contract::accepted_contract::AcceptedContract;
-use dlc_manager::contract::offered_contract::OfferedContract;
-use dlc_manager::contract::ser::Serializable;
-use dlc_manager::contract::signed_contract::SignedContract;
-use dlc_manager::contract::{
-    ClosedContract, Contract, FailedAcceptContract, FailedSignContract, PreClosedContract,
-};
-use dlc_manager::error::Error;
+use dlc_manager::contract::Contract;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonContract {
