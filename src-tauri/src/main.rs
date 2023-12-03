@@ -26,6 +26,7 @@ use std::ops::DerefMut;
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
+use tauri::Manager;
 
 // TODO: Remove this example command.
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -298,42 +299,56 @@ type ResolvrDlcManager = dlc_manager::manager::Manager<
 
 #[tokio::main]
 async fn main() {
-    let context = tauri::generate_context!();
-    let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config())
-        .expect("Error getting app local data dir.");
-
-    // TODO: Set the nPub to our hosted oracle (once it exists).
-    let oracle = Arc::from(NostrNip4ResolvrOracle::new_from_npub());
-
-    let dlc_msg_handler = Arc::from(NostrNip4DlcMessageHandler::new());
-
-    let dlc_storage_provider: Arc<SledStorageProvider> = Arc::new(
-        SledStorageProvider::new(&format!(
-            "{}/dlc_db_hackathon",
-            app_local_data_dir
-                .to_str()
-                .expect("Error converting app local data dir to string.")
-        ))
-        .expect("Error creating DLC storage."),
-    );
-
-    let dlc_manager_or: Arc<Mutex<Option<ResolvrDlcManager>>> = Arc::new(Mutex::new(None));
-
-    let dlc_msg_handler_clone = dlc_msg_handler.clone();
-    let dlc_manager_or_clone = dlc_manager_or.clone();
-    tokio::task::spawn(async move {
-        loop {
-            if let Some(dlc_manager) = dlc_manager_or_clone.lock().unwrap().as_mut() {
-                if let Err(e) = process_incoming_dlc_msgs(dlc_manager, &dlc_msg_handler_clone) {
-                    // TODO: Handle error.
-                    println!("Error processing incoming DLC messages: {}", e);
-                };
-            };
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-    });
-
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_window::init())
+        .setup(|app| {
+            let app_local_data_dir = app
+                .path()
+                .app_local_data_dir()
+                .expect("Error getting app local data dir.");
+
+            // TODO: Set the nPub to our hosted oracle (once it exists).
+            let oracle = Arc::from(NostrNip4ResolvrOracle::new_from_npub());
+
+            let dlc_msg_handler = Arc::from(NostrNip4DlcMessageHandler::new());
+
+            let dlc_storage_provider: Arc<SledStorageProvider> = Arc::new(
+                SledStorageProvider::new(&format!(
+                    "{}/dlc_db_hackathon",
+                    app_local_data_dir
+                        .to_str()
+                        .expect("Error converting app local data dir to string.")
+                ))
+                .expect("Error creating DLC storage."),
+            );
+
+            let dlc_manager_or: Arc<Mutex<Option<ResolvrDlcManager>>> = Arc::new(Mutex::new(None));
+
+            let dlc_msg_handler_clone = dlc_msg_handler.clone();
+            let dlc_manager_or_clone = dlc_manager_or.clone();
+            tokio::task::spawn(async move {
+                loop {
+                    if let Some(dlc_manager) = dlc_manager_or_clone.lock().unwrap().as_mut() {
+                        if let Err(e) =
+                            process_incoming_dlc_msgs(dlc_manager, &dlc_msg_handler_clone)
+                        {
+                            // TODO: Handle error.
+                            println!("Error processing incoming DLC messages: {}", e);
+                        };
+                    };
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            });
+
+            app.manage(oracle);
+            app.manage(dlc_msg_handler);
+            app.manage(dlc_storage_provider);
+            app.manage(dlc_manager_or);
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             request_oracle_adjudication,
@@ -344,11 +359,7 @@ async fn main() {
             accept_contract,
             delete_contract
         ])
-        .manage(oracle)
-        .manage(dlc_msg_handler)
-        .manage(dlc_storage_provider)
-        .manage(dlc_manager_or)
-        .run(context)
+        .run(tauri::generate_context!())
         .expect("Error while running Tauri application.");
 }
 
