@@ -36,7 +36,11 @@ Let's assume a maker has posted a bounty, a taker has accepted it, and they've b
 5. This signed event is used to unlock the on-chain contract and direct the funds to the appropriate party.
 
 ### Escrow Agent
-Perhaps you're asking yourself, how does putting all the trust in an escrow agent solve the problem? Aren't we just shifting the trust from one party to another? If the escrow agent was a single entity then this would be the case. However, Resolvr's escrow system uses Fedimint as the escrow agent. Fedimint is a system for running federated applications through entities called federations. Federations are able to perform actions by the federation nodes reaching consensus. This allows for any individual node to be offline or even malicious and yet unable to disrupt the rest of the nodes in the federation. We've built a module for the Fedimint platform that allows for federated adjudication of escrow contracts. Any federation running this module is able to act as a Resolvr escrow agent.
+Perhaps you're asking yourself, how does putting all the trust in an escrow agent solve the problem? Aren't we just shifting the trust from one party to another? There are two reasons why introducing this third entity can be beneficial:
+
+1. **Concentrated Reputation**: Bounties are costly for makers to offer (since they are offering up sats) and for takers to complete (since they must expend time and mental effort). This makes the process of accruing reputation slow and inefficient. And if a maker or taker stops using the Resolvr platform, their reputation is effectively lost. We expect that escrow agents will likely adjudicate many bounties - many more than a typical maker or taker will ever be able to engage in - and build up reputation that is long-lasting and efficiently reused across many bounties. And since verifying whether work was completed is much cheaper than actually doing the work (like Bitcoin proof-of-work), an escrow agent will be able to accrue reputation much faster and more efficiently than a maker or taker could. In practice, this should mean that makers and takers that are new to the Resolvr platform and/or have low reputation will essentially be able to leverage the reputation that past makers and takers have helped escrow agents accrue in order to bootstrap their own reputations by using escrow with their bounties.
+
+2. In the future, Resolvr will allow for Fedimint federations to act as federated escrow agents, effectively eliminating the escrow agent as a single point of failure. See the [future work](#future-work) section for details.
 
 ### Funding Contract
 The funding contract used for Resolvr escrow is a [Discreet Log Contract](https://bitcoinops.org/en/topics/discreet-log-contracts/). While a 2-of-3 multisig could achieve similar behavior, DLCs provide a few key benefits that make them a better choice as an escrow system.
@@ -59,17 +63,22 @@ Once the escrow agent broadcasts an event signature for the bounty, that signatu
 #### Timeout and Expiration
 When creating a bounty DLC, a timeout is included that returns all funds in the contract back to the maker if it is exceeded. This timeout is agreed to by all parties and can be hit if the escrow agent never receives a bounty submission it considers sufficient or if the escrow agent goes offline.
 
+## Future Work
+
+* **Disk Encryption**: Currently all data is stored unencrypted. It might make sense to encrypt all disk data using the user's nSec.
+
+* **Unified App**: Since Tauri essentially provides a browser tab to use as the UI, we could eventually merge the codebases of the desktop app with our [bounty board](https://resolvr-io.vercel.app/) and provide a unified experience on both (like [Electron](https://www.electronjs.org/) apps such as Discord and Spotify) and enable "power user" features such as escrow only on the desktop app.
+
+* **Acting as an Escrow Agent in the App**: Currently all app users must use Resolvr's hosted escrow agent. In the future, users could be able to act as escrow agents directly in the app.
+
+* **Federated Escrow Agents**: Centralized escrow agents are a potential point of failure/corruption. We propose Fedimint as a method for running decentralized escrow agents. Fedimint is a system for running federated applications through entities called federations. Federations are able to perform actions by the federation nodes reaching consensus. This allows for any individual node to be offline or even malicious and yet unable to disrupt the rest of the nodes in the federation. We're currently building a module for the Fedimint platform that allows for federated adjudication of escrow contracts using [FROST](https://glossary.blockstream.com/frost/). Any federation running this module will be able to act as a Resolvr escrow agent. This work is being done outside of the app codebase but will provide significant impact to users of the app and so is worth mentioning here.
+
 ## Notes, TODOs, and questions to be answered
 
 TODO: Describe the danger in taker-rugpulling and why it makes sense to always use the escrow agent for settling contracts rather than only in the case of a dispute.
 
-TODO: Figure out whether we even need a "contract unresolved" DLC outcome. Could we just use the built-in DLC expiration?
-
-What's a PSBT?
-A PSBT is a Partially Signed Bitcoin Transaction. It is a format for transactions that are not fully signed and allows for transactions to be passed around multiple parties until all necessary signatures are collected. Its purpose is to standardize the way different wallets and services handle the signing of transactions, especially in situations where multiple signatures are required, such as with multi-signature wallets. It enhances the flexibility and security of Bitcoin transactions.
-
 Where does this fit in?
-For Resolvr Escrow, both the bounty maker and taker would be required to agree on bounty terms and sign a PSBT broadcast by our service
+For Resolvr Escrow, both the bounty maker and taker would be required to agree on bounty terms
 
 How will escrow help me resolve disputes?
 
@@ -81,7 +90,3 @@ Where is the code hosted?
 Why use this stack?
 
 What are DLCs/oracle/fedimint?
-
-Couldn't the oracle be compromised?
-By using a federated signing process, frost, we remove a single point of failure.
-A fedimint allows us to act as a singular entity.
