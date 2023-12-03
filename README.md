@@ -13,7 +13,7 @@ For the best experience, use [VS Code](https://code.visualstudio.com/) with the 
 
 ### Prerequisites
 
-You will need to have Rust and NodeJS/bun installed to run the app. You can install Rust [here](https://www.rust-lang.org/tools/install) NodeJS [here](https://nodejs.org/en/download/) and bun [here](https://bun.sh/).
+You will need to have Rust and NodeJS/Bun installed to run the app. You can install Rust [here](https://www.rust-lang.org/tools/install), NodeJS [here](https://nodejs.org/en/download/), and Bun [here](https://bun.sh/).
 
 ### Commands
 
