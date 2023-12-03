@@ -9,6 +9,8 @@ For the best experience, use [VS Code](https://code.visualstudio.com/) with the 
 * [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
 * [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
+We are using `prettier` for code formatting. You can install the VS Code plugin [here](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) and enable the `Format On Save` option in your VS Code settings.
+
 ## Running in development mode
 
 ### Prerequisites
