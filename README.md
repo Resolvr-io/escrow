@@ -77,8 +77,6 @@ When creating a bounty DLC, a timeout is included that returns all funds in the 
 
 TODO: Describe the danger in taker-rugpulling and why it makes sense to always use the escrow agent for settling contracts rather than only in the case of a dispute.
 
-TODO: Figure out whether we even need a "contract unresolved" DLC outcome. Could we just use the built-in DLC expiration?
-
 Where does this fit in?
 For Resolvr Escrow, both the bounty maker and taker would be required to agree on bounty terms
 
