@@ -13,12 +13,12 @@ For the best experience, use [VS Code](https://code.visualstudio.com/) with the 
 
 ### Prerequisites
 
-You will need to have Rust and NodeJS/NPM installed to run the app. You can install Rust [here](https://www.rust-lang.org/tools/install) and NodeJS/NPM [here](https://nodejs.org/en/download/).
+You will need to have Rust and NodeJS/bun installed to run the app. You can install Rust [here](https://www.rust-lang.org/tools/install) NodeJS [here](https://nodejs.org/en/download/) and bun [here](https://bun.sh/).
 
 ### Commands
 
-1. Install JS/TS dependencies by running `npm i`.
-2. Start the app by running `npm run tauri dev`. This enables hot module reloading for the React app.
+1. Install JS/TS dependencies by running `bun i`.
+2. Start the app by running `bun run tauri dev`. This enables hot module reloading for the React app.
 
 ## Background
 Resolvr is a Bitcoin-native dispute resolution service for FOSS bounties, enabling "makers" to post rewards for bounties and "takers" to accept and complete them. For any bounty, the maker and taker both need reasonable assurance that they won't be cheated by the other party. This assurance may be possible simply through reputation of the maker/taker or a prior relationship between the two parties. However, in the rather likely event that this trust/relationship does not exist, an escrow system can be used to provide the needed assurance to both parties by introducing a third entity, the "escrow agent". The escrow agent is given the power to adjudicate bounty completion and control the flow of funds with on-chain enforceability.
