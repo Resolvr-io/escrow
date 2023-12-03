@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod contract;
+mod resolvr_oracle;
 
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
@@ -15,16 +16,16 @@ use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
-use mocks::mock_oracle_provider::MockOracle;
+use resolvr_oracle::{
+    AdjudicationRequest, AdjudicationRequestStatus, NostrNip4ResolvrOracle,
+    BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
-
-const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "BOUNTY_COMPLETE";
-const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "BOUNTY_INSUFFICIENT";
 
 // TODO: Remove this example command.
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -34,27 +35,27 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn request_oracle_adjudication(
-    _adjudication_request: AdjudicationRequest,
-    _oracle: tauri::State<Arc<MockOracle>>,
+async fn request_oracle_adjudication(
+    adjudication_request: AdjudicationRequest,
+    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<AdjudicationRequestStatus, String> {
-    // TODO: Implement by sending a message to the oracle and waiting for a
-    // response.
-    panic!("Not implemented.");
+    oracle.request_adjudication(adjudication_request).await
 }
 
 #[tauri::command]
-fn get_oracle_adjudication_request_status(
-    _oracle_event_id: String,
+async fn get_oracle_adjudication_request_status(
+    oracle_event_id: &str,
+    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<AdjudicationRequestStatus, String> {
-    // TODO: Implement by sending a message to the oracle and waiting for a
-    // response.
-    panic!("Not implemented.");
+    oracle
+        .get_adjudication_request_status(oracle_event_id)
+        .await
 }
 
 #[tauri::command]
 fn connect_to_bitcoin_core(
     bitcoin_core_config: BitcoinCoreConfig,
+    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
     dlc_storage: tauri::State<Arc<SledStorageProvider>>,
     dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
 ) -> Result<(), String> {
@@ -69,8 +70,8 @@ fn connect_to_bitcoin_core(
         Err(e) => return Err(format!("Error creating Bitcoin Core provider: {}", e)),
     };
 
-    // TODO: Add hardcoded Resolvr oracle.
-    let oracles: HashMap<XOnlyPublicKey, Arc<MockOracle>> = HashMap::new();
+    let mut oracles: HashMap<XOnlyPublicKey, Arc<NostrNip4ResolvrOracle>> = HashMap::new();
+    oracles.insert(oracle.get_public_key(), oracle.inner().clone());
 
     let mut dlc_manager_or: MutexGuard<Option<ResolvrDlcManager>> = dlc_manager_or.lock().unwrap();
     let binding: &mut Option<ResolvrDlcManager> = dlc_manager_or.deref_mut();
@@ -116,7 +117,7 @@ fn offer_contract(
     oracle_event_id: String,
     counter_party_public_key: &str,
     dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
-    oracle: tauri::State<Arc<MockOracle>>,
+    oracle: tauri::State<Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<(), String> {
     let mut dlc_manager_or = dlc_manager_or.lock().unwrap();
     let mut binding = dlc_manager_or.as_mut();
@@ -230,33 +231,6 @@ fn delete_contract(
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct AdjudicationRequest {
-    bounty_template: BountyTemplate,
-}
-
-#[derive(Serialize, Deserialize)]
-struct AdjudicationRequestStatus {
-    /// The event ID of the bounty. ID is not usable until the bounty is
-    /// approved (which can be checked with `adjudication_state`).
-    oracle_event_id: String,
-
-    adjudication_state: AdjudicationRequestState,
-}
-
-#[derive(Serialize, Deserialize)]
-struct BountyTemplate {
-    title: String,
-    description: String,
-}
-
-#[derive(Serialize, Deserialize)]
-enum AdjudicationRequestState {
-    Approved,
-    Denied,
-    InReview,
-}
-
 struct NostrNip4DlcMessageHandler {}
 
 impl NostrNip4DlcMessageHandler {
@@ -317,7 +291,7 @@ type ResolvrDlcManager = dlc_manager::manager::Manager<
     Arc<BitcoinCoreProvider>,
     Arc<BitcoinCoreProvider>,
     Arc<SledStorageProvider>,
-    Arc<MockOracle>,
+    Arc<NostrNip4ResolvrOracle>,
     Arc<SystemTimeProvider>,
     Arc<BitcoinCoreProvider>,
 >;
@@ -328,7 +302,8 @@ async fn main() {
     let app_local_data_dir = tauri::api::path::app_local_data_dir(context.config())
         .expect("Error getting app local data dir.");
 
-    let oracle = Arc::from(MockOracle::new());
+    // TODO: Set the nPub to our hosted oracle (once it exists).
+    let oracle = Arc::from(NostrNip4ResolvrOracle::new_from_npub());
 
     let dlc_msg_handler = Arc::from(NostrNip4DlcMessageHandler::new());
 
