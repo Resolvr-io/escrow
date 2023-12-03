@@ -1795,20 +1795,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mocks"
-version = "0.1.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
-dependencies = [
- "bitcoin",
- "dlc",
- "dlc-manager",
- "dlc-messages",
- "lightning",
- "secp256k1-zkp",
- "simple-wallet",
-]
-
-[[package]]
 name = "ndk"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2481,7 +2467,6 @@ dependencies = [
  "dlc-messages",
  "dlc-sled-storage-provider",
  "hex",
- "mocks",
  "serde",
  "serde_json",
  "tauri",
