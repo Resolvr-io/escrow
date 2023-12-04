@@ -1,7 +1,7 @@
 use core::panic;
 use dlc_manager::Oracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
-use serde::{Deserialize, Serialize};
+use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
 
 pub const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "BOUNTY_COMPLETE";
 pub const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "BOUNTY_INSUFFICIENT";
@@ -47,31 +47,4 @@ impl Oracle for NostrNip4ResolvrOracle {
     ) -> Result<OracleAttestation, dlc_manager::error::Error> {
         panic!("Not implemented yet.");
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct AdjudicationRequest {
-    bounty_template: BountyTemplate,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct AdjudicationRequestStatus {
-    /// The event ID of the bounty. ID is not usable until the bounty is
-    /// approved (which can be checked with `adjudication_state`).
-    oracle_event_id: String,
-
-    adjudication_state: AdjudicationRequestState,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct BountyTemplate {
-    title: String,
-    description: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum AdjudicationRequestState {
-    Approved,
-    Denied,
-    InReview,
 }

@@ -9,7 +9,7 @@ jobs:
   test-rust:
     strategy:
       matrix:
-        folder: [dlc_test, src-tauri]
+        folder: [dlc_test, src-tauri, escrow_agent_messages]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code

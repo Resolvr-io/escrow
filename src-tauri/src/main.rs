@@ -16,9 +16,9 @@ use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
+use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
 use resolvr_oracle::{
-    AdjudicationRequest, AdjudicationRequestStatus, NostrNip4ResolvrOracle,
-    BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
+    NostrNip4ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
