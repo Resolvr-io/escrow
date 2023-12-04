@@ -1,10 +1,10 @@
 use dlc_manager::error::Error as DaemonError;
 use dlc_manager::Oracle;
-use dlc_messages::oracle_msgs::{
-    EventDescriptor, OracleAnnouncement, OracleAttestation, OracleEvent,
+use dlc_messages::oracle_msgs::{EventDescriptor, OracleAnnouncement, OracleAttestation};
+use escrow_agent_messages::{
+    AdjudicationRequest, AdjudicationRequestState, AdjudicationRequestStatus, BountyTemplate,
+    EscrowAgent,
 };
-use escrow_agent_messages::BountyTemplate;
-use lightning::util::ser::Writeable;
 use secp256k1_zkp::rand::thread_rng;
 use secp256k1_zkp::serde::{Deserialize, Serialize};
 use secp256k1_zkp::{All, Message, Secp256k1, SecretKey};
@@ -26,9 +26,22 @@ struct OnDiskAdjudicationItem {
     adjudication_state: OnDiskAdjudicationItemState,
 }
 
+impl From<OnDiskAdjudicationItem> for AdjudicationRequestStatus {
+    fn from(item: OnDiskAdjudicationItem) -> Self {
+        AdjudicationRequestStatus {
+            oracle_event_id: item.bounty_template.oracle_event_id,
+            adjudication_state: match item.adjudication_state {
+                OnDiskAdjudicationItemState::Approved(_) => AdjudicationRequestState::Approved,
+                OnDiskAdjudicationItemState::Denied(_) => AdjudicationRequestState::Denied,
+                OnDiskAdjudicationItemState::InReview(_) => AdjudicationRequestState::InReview,
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 enum OnDiskAdjudicationItemState {
-    Approved(OnDiskOracleItem),
+    Approved(Box<OnDiskOracleItem>),
     Denied(EventId),
     InReview(EventId),
 }
@@ -63,39 +76,53 @@ impl SledOracle {
         Ok(oracle)
     }
 
-    pub fn add_adjudication_request(
-        &mut self,
-        event_id: &str,
-        bounty_template: BountyTemplate,
-    ) -> Result<(), DaemonError> {
-        let item = OnDiskAdjudicationItem {
-            bounty_template,
-            adjudication_state: OnDiskAdjudicationItemState::InReview(event_id.to_string()),
-        };
-        match self
-            .db
-            .open_tree([ADJUDICATION_ITEM_TREE])
-            .unwrap()
-            .compare_and_swap(
-                event_id.as_bytes(),
-                None as Option<&[u8]>,
-                Some(bincode::serialize(&item).unwrap()),
-            )
-            .unwrap()
-        {
-            Ok(_) => Ok(()),
-            Err(_) => Err(DaemonError::OracleError(
-                "Adjudication request/item already exists for this event id!".to_string(),
-            )),
+    /// Returns a list of all adjudication requests in the given state, or all requests if `state_or` is `None`.
+    pub fn list_adjudication_requests(
+        &self,
+        state_or: Option<AdjudicationRequestState>,
+    ) -> Vec<AdjudicationRequestStatus> {
+        let mut result = Vec::new();
+        let tree = self.db.open_tree([ADJUDICATION_ITEM_TREE]).unwrap();
+        for item in tree.iter() {
+            let (_, data) = item.unwrap();
+            let item: OnDiskAdjudicationItem = bincode::deserialize(&data).unwrap();
+            let status: AdjudicationRequestStatus = item.into();
+            match &state_or {
+                Some(state) => {
+                    if status.adjudication_state == *state {
+                        result.push(status);
+                    }
+                }
+                None => result.push(status),
+            };
         }
+        result
     }
 
-    pub fn approve_adjudication_request(&mut self, event_id: &str) -> Result<(), DaemonError> {
+    pub fn approve_adjudication_request(&mut self, _event_id: &str) -> Result<(), DaemonError> {
         // TODO: Implement this.
         panic!("Not implemented!");
 
-        // let (announcement, nonces) =
-        //     self.create_oracle_announcement(event_id, event_descriptor, maturity);
+        // let event_descriptor: &EventDescriptor;
+        // let maturity: u32;
+        // let (nonces, oracle_nonces) = self.generate_nonces_for_event(event_descriptor);
+        // let oracle_event = OracleEvent {
+        //     oracle_nonces,
+        //     event_maturity_epoch: maturity,
+        //     event_descriptor: event_descriptor.clone(),
+        //     event_id: event_id.to_string(),
+        // };
+        // let mut event_hex = Vec::new();
+        // oracle_event
+        //     .write(&mut event_hex)
+        //     .expect("Error writing oracle event");
+        // let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(&event_hex);
+        // let sig = self.secp.sign_schnorr(&msg, &self.get_keypair());
+        // let announcement = OracleAnnouncement {
+        //     announcement_signature: sig,
+        //     oracle_public_key: self.get_public_key(),
+        //     oracle_event,
+        // };
         // let oracle_item = OnDiskOracleItem {
         //     announcement,
         //     nonces,
@@ -159,33 +186,6 @@ impl SledOracle {
         } else {
             panic!("Failed to update attestation! Announcement not found!");
         }
-    }
-
-    fn create_oracle_announcement(
-        &mut self,
-        event_id: &str,
-        event_descriptor: &EventDescriptor,
-        maturity: u32,
-    ) -> (OracleAnnouncement, Vec<SecretKey>) {
-        let (priv_oracle_nonces, oracle_nonces) = self.generate_nonces_for_event(event_descriptor);
-        let oracle_event = OracleEvent {
-            oracle_nonces,
-            event_maturity_epoch: maturity,
-            event_descriptor: event_descriptor.clone(),
-            event_id: event_id.to_string(),
-        };
-        let mut event_hex = Vec::new();
-        oracle_event
-            .write(&mut event_hex)
-            .expect("Error writing oracle event");
-        let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(&event_hex);
-        let sig = self.secp.sign_schnorr(&msg, &self.get_keypair());
-        let oracle_announcement = OracleAnnouncement {
-            announcement_signature: sig,
-            oracle_public_key: self.get_public_key(),
-            oracle_event,
-        };
-        (oracle_announcement, priv_oracle_nonces)
     }
 
     fn generate_nonces_for_event(
@@ -283,6 +283,44 @@ impl SledOracle {
             .get(event_id.as_bytes())
             .unwrap()?;
         Some(bincode::deserialize(&data).unwrap())
+    }
+}
+
+impl EscrowAgent for SledOracle {
+    fn request_adjudication(
+        &self,
+        adjudication_request: AdjudicationRequest,
+    ) -> Result<AdjudicationRequestStatus, String> {
+        let oracle_event_id = adjudication_request.bounty_template.oracle_event_id.clone();
+        let item = OnDiskAdjudicationItem {
+            bounty_template: adjudication_request.bounty_template,
+            adjudication_state: OnDiskAdjudicationItemState::InReview(oracle_event_id.to_string()),
+        };
+        match self
+            .db
+            .open_tree([ADJUDICATION_ITEM_TREE])
+            .unwrap()
+            .compare_and_swap(
+                oracle_event_id.as_bytes(),
+                None as Option<&[u8]>,
+                Some(bincode::serialize(&item).unwrap()),
+            )
+            .unwrap()
+        {
+            Ok(_) => Ok(item.into()),
+            Err(_) => {
+                Err("Adjudication request/item already exists for this event id!".to_string())
+            }
+        }
+    }
+
+    fn get_adjudication_request_status(
+        &self,
+        event_id: &str,
+    ) -> Result<AdjudicationRequestStatus, String> {
+        self.get_adjudication_item(event_id)
+            .map(|item| item.into())
+            .ok_or_else(|| "Adjudication request/item not found!".to_string())
     }
 }
 

@@ -845,6 +845,7 @@ dependencies = [
 name = "escrow_agent_messages"
 version = "0.0.0"
 dependencies = [
+ "dlc-manager",
  "serde",
 ]
 

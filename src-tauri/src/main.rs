@@ -16,6 +16,7 @@ use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
+use escrow_agent_messages::EscrowAgent;
 use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
 use resolvr_oracle::{
     NostrNip4ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
@@ -35,21 +36,19 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn request_oracle_adjudication(
+fn request_oracle_adjudication(
     adjudication_request: AdjudicationRequest,
-    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
+    oracle: tauri::State<Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<AdjudicationRequestStatus, String> {
-    oracle.request_adjudication(adjudication_request).await
+    oracle.request_adjudication(adjudication_request)
 }
 
 #[tauri::command]
-async fn get_oracle_adjudication_request_status(
+fn get_oracle_adjudication_request_status(
     oracle_event_id: &str,
-    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
+    oracle: tauri::State<Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<AdjudicationRequestStatus, String> {
-    oracle
-        .get_adjudication_request_status(oracle_event_id)
-        .await
+    oracle.get_adjudication_request_status(oracle_event_id)
 }
 
 #[tauri::command]

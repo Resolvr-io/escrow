@@ -1,7 +1,7 @@
 use core::panic;
 use dlc_manager::Oracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
-use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
+use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus, EscrowAgent};
 
 pub const BOUNTY_COMPLETE_ORACLE_MESSAGE: &str = "BOUNTY_COMPLETE";
 pub const BOUNTY_INSUFFICIENT_ORACLE_MESSAGE: &str = "BOUNTY_INSUFFICIENT";
@@ -13,18 +13,22 @@ impl NostrNip4ResolvrOracle {
     pub fn new_from_npub() -> Self {
         Self {}
     }
+}
 
-    pub async fn request_adjudication(
+impl EscrowAgent for NostrNip4ResolvrOracle {
+    fn request_adjudication(
         &self,
         _adjudication_request: AdjudicationRequest,
     ) -> Result<AdjudicationRequestStatus, String> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 
-    pub async fn get_adjudication_request_status(
+    fn get_adjudication_request_status(
         &self,
         _event_id: &str,
     ) -> Result<AdjudicationRequestStatus, String> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 }
