@@ -4,7 +4,7 @@ import CreateContractPage from "./pages/CreateContractPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute"; // Import your ProtectedRoute component
 import LoginPage from "./pages/LoginPage";
 import ContractPage from "./pages/ContractPage";
-import Header from "./components/header/header";
+import Header from "./components/header/Header";
 
 export default function DashboardPage() {
   return (

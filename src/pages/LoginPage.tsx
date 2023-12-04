@@ -11,7 +11,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 
-import { invoke } from "@tauri-apps/api/primitives";
+// import { invoke } from "@tauri-apps/api/primitives";
 import { generatePrivateKey, getPublicKey, nip19 } from "nostr-tools";
 
 export default function LoginPage() {
@@ -21,11 +21,11 @@ export default function LoginPage() {
     const nsec = nip19.nsecEncode(sk);
     const npub = nip19.npubEncode(pk);
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    const test = await invoke("save_secret_key_to_keychain", {
-      nsec: nsec,
-      npub: npub,
-    });
-    console.log("RESULT", test);
+    // const test = await invoke("save_secret_key_to_keychain", {
+    //   nsec: nsec,
+    //   npub: npub,
+    // });
+    // console.log("RESULT", test);
     // alert("hello");
   }
 

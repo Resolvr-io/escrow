@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 
 // import { invoke } from "@tauri-apps/api/tauri";
 
-import { invoke } from "@tauri-apps/api/primitives";
+// import { invoke } from "@tauri-apps/api/primitives";
 
 import {
   createBrowserRouter,
@@ -26,8 +26,8 @@ import {
 
 async function setSecret() {
   // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-  const test = await invoke("set_secret");
-  console.log(test);
+  // const test = await invoke("set_secret");
+  // console.log(test);
   // alert("hello");
 }
 
