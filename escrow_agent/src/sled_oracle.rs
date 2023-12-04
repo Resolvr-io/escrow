@@ -3,6 +3,7 @@ use dlc_manager::Oracle;
 use dlc_messages::oracle_msgs::{
     EventDescriptor, OracleAnnouncement, OracleAttestation, OracleEvent,
 };
+use escrow_agent_messages::BountyTemplate;
 use lightning::util::ser::Writeable;
 use secp256k1_zkp::rand::thread_rng;
 use secp256k1_zkp::serde::{Deserialize, Serialize};
@@ -17,13 +18,28 @@ const DB_LATEST_VERSION: u8 = 1;
 const KEYPAIR_TREE: u8 = 2;
 const KEYPAIR_KEY: u8 = 1;
 
-const ORACLE_ITEM_TREE: u8 = 3;
+const ADJUDICATION_ITEM_TREE: u8 = 3;
+
+#[derive(Serialize, Deserialize)]
+struct OnDiskAdjudicationItem {
+    bounty_template: BountyTemplate,
+    adjudication_state: OnDiskAdjudicationItemState,
+}
+
+#[derive(Serialize, Deserialize)]
+enum OnDiskAdjudicationItemState {
+    Approved(OnDiskOracleItem),
+    Denied(EventId),
+    InReview(EventId),
+}
+
+type EventId = String;
 
 #[derive(Serialize, Deserialize)]
 struct OnDiskOracleItem {
     announcement: OracleAnnouncement,
     nonces: Vec<SecretKey>,
-    attestation: Option<OracleAttestation>,
+    attestation_or: Option<OracleAttestation>,
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +61,156 @@ impl SledOracle {
         println!("Oracle public key: {:x}", oracle.get_public_key());
         oracle.db.flush().unwrap();
         Ok(oracle)
+    }
+
+    pub fn add_adjudication_request(
+        &mut self,
+        event_id: &str,
+        bounty_template: BountyTemplate,
+    ) -> Result<(), DaemonError> {
+        let item = OnDiskAdjudicationItem {
+            bounty_template,
+            adjudication_state: OnDiskAdjudicationItemState::InReview(event_id.to_string()),
+        };
+        match self
+            .db
+            .open_tree([ADJUDICATION_ITEM_TREE])
+            .unwrap()
+            .compare_and_swap(
+                event_id.as_bytes(),
+                None as Option<&[u8]>,
+                Some(bincode::serialize(&item).unwrap()),
+            )
+            .unwrap()
+        {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DaemonError::OracleError(
+                "Adjudication request/item already exists for this event id!".to_string(),
+            )),
+        }
+    }
+
+    pub fn approve_adjudication_request(&mut self, event_id: &str) -> Result<(), DaemonError> {
+        // TODO: Implement this.
+        panic!("Not implemented!");
+
+        // let (announcement, nonces) =
+        //     self.create_oracle_announcement(event_id, event_descriptor, maturity);
+        // let oracle_item = OnDiskOracleItem {
+        //     announcement,
+        //     nonces,
+        //     attestation_or: None,
+        // };
+    }
+
+    pub fn deny_adjudication_request(&mut self, event_id: &str) -> Result<(), DaemonError> {
+        // TODO: Implement this.
+        panic!("Not implemented!");
+    }
+
+    pub fn attest_adjudication(&mut self, event_id: &str, outcomes: &[String]) {
+        let update_result = self
+            .db
+            .open_tree([ADJUDICATION_ITEM_TREE])
+            .unwrap()
+            .update_and_fetch(event_id.as_bytes(), |old: Option<&[u8]>| {
+                let mut item: OnDiskOracleItem = match old {
+                    Some(data) => bincode::deserialize(data).unwrap(),
+                    None => return None,
+                };
+                let signatures = outcomes
+                    .iter()
+                    .zip(item.nonces.iter())
+                    .map(|(x, nonce)| {
+                        let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(
+                            x.as_bytes(),
+                        );
+                        dlc::secp_utils::schnorrsig_sign_with_nonce(
+                            &self.secp,
+                            &msg,
+                            &self.get_keypair(),
+                            nonce.as_ref(),
+                        )
+                    })
+                    .collect();
+                let attestation = OracleAttestation {
+                    oracle_public_key: self.get_public_key(),
+                    signatures,
+                    outcomes: outcomes.to_vec(),
+                };
+                // IMPORTANT: Only update the attestation if it is not already set.
+                // This is to prevent the oracle from overwriting a previous attestation, which
+                // could cause the oracle to produce multiple attestations for the same event.
+                // If multiple attestations are produced, the oracle's private key can be computed
+                // by anyone who knows the public key and the two attestations.
+                if item.attestation_or.is_none() {
+                    item.attestation_or = Some(attestation);
+                }
+                Some(bincode::serialize(&item).unwrap())
+            })
+            .unwrap();
+
+        if let Some(data) = update_result {
+            self.db
+                .open_tree([ADJUDICATION_ITEM_TREE])
+                .unwrap()
+                .insert(event_id.as_bytes(), data)
+                .unwrap();
+        } else {
+            panic!("Failed to update attestation! Announcement not found!");
+        }
+    }
+
+    fn create_oracle_announcement(
+        &mut self,
+        event_id: &str,
+        event_descriptor: &EventDescriptor,
+        maturity: u32,
+    ) -> (OracleAnnouncement, Vec<SecretKey>) {
+        let (priv_oracle_nonces, oracle_nonces) = self.generate_nonces_for_event(event_descriptor);
+        let oracle_event = OracleEvent {
+            oracle_nonces,
+            event_maturity_epoch: maturity,
+            event_descriptor: event_descriptor.clone(),
+            event_id: event_id.to_string(),
+        };
+        let mut event_hex = Vec::new();
+        oracle_event
+            .write(&mut event_hex)
+            .expect("Error writing oracle event");
+        let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(&event_hex);
+        let sig = self.secp.sign_schnorr(&msg, &self.get_keypair());
+        let oracle_announcement = OracleAnnouncement {
+            announcement_signature: sig,
+            oracle_public_key: self.get_public_key(),
+            oracle_event,
+        };
+        (oracle_announcement, priv_oracle_nonces)
+    }
+
+    fn generate_nonces_for_event(
+        &mut self,
+        event_descriptor: &EventDescriptor,
+    ) -> (Vec<SecretKey>, Vec<XOnlyPublicKey>) {
+        let nb_nonces = match event_descriptor {
+            EventDescriptor::EnumEvent(_) => 1,
+            EventDescriptor::DigitDecompositionEvent(d) => d.nb_digits,
+        };
+
+        let priv_nonces: Vec<_> = (0..nb_nonces)
+            .map(|_| SecretKey::new(&mut thread_rng()))
+            .collect();
+        let key_pairs: Vec<_> = priv_nonces
+            .iter()
+            .map(|x| KeyPair::from_seckey_slice(&self.secp, x.as_ref()).unwrap())
+            .collect();
+
+        let nonces = key_pairs
+            .iter()
+            .map(|k| XOnlyPublicKey::from_keypair(k).0)
+            .collect();
+
+        (priv_nonces, nonces)
     }
 
     fn maybe_insert_db_version(&self) {
@@ -109,10 +275,10 @@ impl SledOracle {
         bincode::deserialize(&data).unwrap()
     }
 
-    fn get_oracle_item(&self, event_id: &str) -> Option<OnDiskOracleItem> {
+    fn get_adjudication_item(&self, event_id: &str) -> Option<OnDiskAdjudicationItem> {
         let data = self
             .db
-            .open_tree([ORACLE_ITEM_TREE])
+            .open_tree([ADJUDICATION_ITEM_TREE])
             .unwrap()
             .get(event_id.as_bytes())
             .unwrap()?;
@@ -127,134 +293,37 @@ impl Oracle for SledOracle {
 
     fn get_announcement(&self, event_id: &str) -> Result<OracleAnnouncement, DaemonError> {
         let item = self
-            .get_oracle_item(event_id)
+            .get_adjudication_item(event_id)
             .ok_or_else(|| DaemonError::OracleError("Announcement not found!".to_string()))?;
 
-        Ok(item.announcement)
+        match item.adjudication_state {
+            OnDiskAdjudicationItemState::Approved(item) => Ok(item.announcement),
+            _ => Err(DaemonError::OracleError(
+                "Announcement not found!".to_string(),
+            )),
+        }
     }
 
     fn get_attestation(&self, event_id: &str) -> Result<OracleAttestation, DaemonError> {
         let item = self
-            .get_oracle_item(event_id)
+            .get_adjudication_item(event_id)
             .ok_or_else(|| DaemonError::OracleError("Attestation not found!".to_string()))?;
 
-        if let Some(attestation) = item.attestation {
+        let attestation_or: Option<OracleAttestation> = match item.adjudication_state {
+            OnDiskAdjudicationItemState::Approved(item) => item.attestation_or,
+            _ => {
+                return Err(DaemonError::OracleError(
+                    "Attestation not found!".to_string(),
+                ))
+            }
+        };
+
+        if let Some(attestation) = attestation_or {
             Ok(attestation)
         } else {
             Err(DaemonError::OracleError(
                 "Attestation not found!".to_string(),
             ))
-        }
-    }
-}
-
-impl SledOracle {
-    fn generate_nonces_for_event(
-        &mut self,
-        event_descriptor: &EventDescriptor,
-    ) -> (Vec<SecretKey>, Vec<XOnlyPublicKey>) {
-        let nb_nonces = match event_descriptor {
-            EventDescriptor::EnumEvent(_) => 1,
-            EventDescriptor::DigitDecompositionEvent(d) => d.nb_digits,
-        };
-
-        let priv_nonces: Vec<_> = (0..nb_nonces)
-            .map(|_| SecretKey::new(&mut thread_rng()))
-            .collect();
-        let key_pairs: Vec<_> = priv_nonces
-            .iter()
-            .map(|x| KeyPair::from_seckey_slice(&self.secp, x.as_ref()).unwrap())
-            .collect();
-
-        let nonces = key_pairs
-            .iter()
-            .map(|k| XOnlyPublicKey::from_keypair(k).0)
-            .collect();
-
-        (priv_nonces, nonces)
-    }
-
-    pub fn add_event(&mut self, event_id: &str, event_descriptor: &EventDescriptor, maturity: u32) {
-        let (priv_oracle_nonces, oracle_nonces) = self.generate_nonces_for_event(event_descriptor);
-        let oracle_event = OracleEvent {
-            oracle_nonces,
-            event_maturity_epoch: maturity,
-            event_descriptor: event_descriptor.clone(),
-            event_id: event_id.to_string(),
-        };
-        let mut event_hex = Vec::new();
-        oracle_event
-            .write(&mut event_hex)
-            .expect("Error writing oracle event");
-        let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(&event_hex);
-        let sig = self.secp.sign_schnorr(&msg, &self.get_keypair());
-        let announcement = OracleAnnouncement {
-            oracle_event,
-            oracle_public_key: self.get_public_key(),
-            announcement_signature: sig,
-        };
-        let item = OnDiskOracleItem {
-            announcement,
-            nonces: priv_oracle_nonces,
-            attestation: None,
-        };
-        self.db
-            .open_tree([ORACLE_ITEM_TREE])
-            .unwrap()
-            .insert(event_id.as_bytes(), bincode::serialize(&item).unwrap())
-            .unwrap();
-    }
-
-    pub fn add_attestation(&mut self, event_id: &str, outcomes: &[String]) {
-        let update_result = self
-            .db
-            .open_tree([ORACLE_ITEM_TREE])
-            .unwrap()
-            .update_and_fetch(event_id.as_bytes(), |old: Option<&[u8]>| {
-                let mut item: OnDiskOracleItem = match old {
-                    Some(data) => bincode::deserialize(data).unwrap(),
-                    None => return None,
-                };
-                let signatures = outcomes
-                    .iter()
-                    .zip(item.nonces.iter())
-                    .map(|(x, nonce)| {
-                        let msg = Message::from_hashed_data::<secp256k1_zkp::hashes::sha256::Hash>(
-                            x.as_bytes(),
-                        );
-                        dlc::secp_utils::schnorrsig_sign_with_nonce(
-                            &self.secp,
-                            &msg,
-                            &self.get_keypair(),
-                            nonce.as_ref(),
-                        )
-                    })
-                    .collect();
-                let attestation = OracleAttestation {
-                    oracle_public_key: self.get_public_key(),
-                    signatures,
-                    outcomes: outcomes.to_vec(),
-                };
-                // IMPORTANT: Only update the attestation if it is not already set.
-                // This is to prevent the oracle from overwriting a previous attestation, which
-                // could cause the oracle to produce multiple attestations for the same event.
-                // If multiple attestations are produced, the oracle's private key can be computed
-                // by anyone who knows the public key and the two attestations.
-                if item.attestation.is_none() {
-                    item.attestation = Some(attestation);
-                }
-                Some(bincode::serialize(&item).unwrap())
-            })
-            .unwrap();
-
-        if let Some(data) = update_result {
-            self.db
-                .open_tree([ORACLE_ITEM_TREE])
-                .unwrap()
-                .insert(event_id.as_bytes(), data)
-                .unwrap();
-        } else {
-            panic!("Failed to update attestation! Annoucement not found!");
         }
     }
 }

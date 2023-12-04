@@ -311,10 +311,18 @@ dependencies = [
  "dlc",
  "dlc-manager",
  "dlc-messages",
+ "escrow_agent_messages",
  "lightning",
  "secp256k1-zkp",
  "serde",
  "sled",
+]
+
+[[package]]
+name = "escrow_agent_messages"
+version = "0.0.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

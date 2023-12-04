@@ -11,6 +11,7 @@ bitcoin-rpc-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-manager = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-messages = { git = "https://github.com/tvolk131/rust-dlc.git", features = ["serde"] }
+escrow_agent_messages = { path = "../escrow_agent_messages" }
 lightning = "0.0.116"
 secp256k1-zkp = { version = "0.7.0", features = ["serde"] }
 serde = "1.0.193"
