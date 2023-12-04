@@ -6,7 +6,10 @@ on:
       - '**' # Matches every branch.
 
 jobs:
-  test:
+  test-rust:
+    strategy:
+      matrix:
+        folder: [dlc_test, src-tauri]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
@@ -17,15 +20,23 @@ jobs:
         toolchain: stable
         override: true
         components: rustfmt, clippy
-    - name: Check Rust Code
+    - name: Install dependencies
       run: |
-        cd dlc_test
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+    - name: Run `cargo check`
+      run: |
+        cd "${{ matrix.folder }}"
         cargo check
         cd ..
-    - name: Validate Formatting for Rust Code
+    - name: Run `cargo fmt`
       run: |
-        cd dlc_test
+        cd "${{ matrix.folder }}"
         cargo fmt -- --check
+        cd ..
+    - name: Run `cargo clippy`
+      run: |
+        cd "${{ matrix.folder }}"
         cargo clippy -- -D warnings
         cd ..
   test-tauri:
@@ -47,17 +58,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-    - name: Check Rust Code
-      run: |
-        cd src-tauri
-        cargo check
-        cd ..
-    - name: Validate Formatting for Rust Code
-      run: |
-        cd src-tauri
-        cargo fmt -- --check
-        cargo clippy -- -D warnings
-        cd ..
     - name: Install frontend dependencies
       run: npm install
     - name: Build Tauri app
