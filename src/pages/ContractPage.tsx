@@ -63,7 +63,7 @@ export default function ContractPage() {
     },
   ];
 
-  // TODO: This sux. Redo it
+  // TODO: Find a better way to update the status
   switch (contract.status) {
     case ContractStatus.opened:
       steps.find((step) => step.id === contract.status)!.status =
@@ -113,9 +113,6 @@ export default function ContractPage() {
         </CardHeader>
         <CardContent>
           <div>{description}</div>
-          {/* <div>Expires on: {expiration}</div>
-            <div>Created on: {createdOn}</div>
-            <div>ID: {id}</div> */}
         </CardContent>
         <CardFooter>
           <div className="flex w-full flex-row justify-between text-gray-500">

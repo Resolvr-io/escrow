@@ -9,7 +9,7 @@ import Header from "~/components/header/Header";
 export default function DashboardPage() {
   return (
     <>
-      <Header></Header>
+      <Header />
       <Routes>
         <Route path="/" element={<ContractsPage />} />
         <Route path="contracts/:contractId" element={<ContractPage />} />
