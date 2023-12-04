@@ -8,7 +8,7 @@ export default function Contracts() {
       {contracts.map((contract) => {
         return (
           <Link className="block" to={`contracts/${contract.id}`}>
-            <Contract contract={contract}></Contract>
+            <Contract contract={contract} />
           </Link>
         );
       })}

@@ -15,8 +15,8 @@ import { generatePrivateKey, getPublicKey, nip19 } from "nostr-tools";
 
 export default function LoginPage() {
   async function setSecret() {
-    const sk = generatePrivateKey(); // `sk` is a hex string
-    const pk = getPublicKey(sk); // `pk` is a hex string
+    const sk = generatePrivateKey();
+    const pk = getPublicKey(sk);
     const nsec = nip19.nsecEncode(sk);
     const npub = nip19.npubEncode(pk);
   }

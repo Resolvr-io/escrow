@@ -7,7 +7,7 @@ import { useId } from "react";
 
 export default function Header() {
   const RANDOM_SEED = useId();
-  // Seed should be some stored user ID
+  // TODO: Generate seed using a stored user ID.
   const seed = null;
   const BOT_AVATAR_ENDPOINT = `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${
     seed || RANDOM_SEED

@@ -26,13 +26,13 @@ export const AuthProvider: FunctionComponent<Props> = ({ children }) => {
   const [user, setUser] = useState<User>(null);
 
   const login = (userCredentials: any) => {
-    // Replace 'any' with a more specific type for userCredentials
+    // TODO: Replace 'any' with a specific type for 'userCredentials'.
     // Implement your login logic here
     setUser({ id: "1", name: "John Doe" }); // Dummy user
   };
 
   const logout = () => {
-    // Implement your logout logic here
+    // TODO: Implement login logic.
     setUser(null);
   };
 
