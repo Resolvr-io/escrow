@@ -20,6 +20,7 @@ impl EscrowAgent for NostrNip4ResolvrOracle {
         &self,
         _adjudication_request: AdjudicationRequest,
     ) -> Result<AdjudicationRequestStatus, String> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 
@@ -27,12 +28,14 @@ impl EscrowAgent for NostrNip4ResolvrOracle {
         &self,
         _event_id: &str,
     ) -> Result<AdjudicationRequestStatus, String> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 }
 
 impl Oracle for NostrNip4ResolvrOracle {
     fn get_public_key(&self) -> bitcoin::XOnlyPublicKey {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 
@@ -40,6 +43,7 @@ impl Oracle for NostrNip4ResolvrOracle {
         &self,
         _event_id: &str,
     ) -> Result<OracleAnnouncement, dlc_manager::error::Error> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 
@@ -47,6 +51,7 @@ impl Oracle for NostrNip4ResolvrOracle {
         &self,
         _event_id: &str,
     ) -> Result<OracleAttestation, dlc_manager::error::Error> {
+        // TODO: Implement this.
         panic!("Not implemented yet.");
     }
 }

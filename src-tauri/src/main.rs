@@ -240,18 +240,21 @@ impl NostrNip4DlcMessageHandler {
     /// Sends a message to the given counterparty to progress the state of a DLC
     /// contract.
     fn send_msg(&self, _msg: dlc_messages::Message, _counter_party: PublicKey) {
+        // TODO: Implement this.
         panic!("Not implemented.");
     }
 
     /// Returns the next incoming messages and the counterparty public key that
     /// sent it, without removing it from the queue.
     fn peek_next_incoming_msg(&self) -> &Option<(dlc_messages::Message, PublicKey)> {
+        // TODO: Implement this.
         panic!("Not implemented.");
     }
 
     /// Returns the next incoming messages and the counterparty public key that
     /// sent it, removing it from the queue.
     fn pop_next_incoming_msg(&self) -> Option<(dlc_messages::Message, PublicKey)> {
+        // TODO: Implement this.
         panic!("Not implemented.");
     }
 }
