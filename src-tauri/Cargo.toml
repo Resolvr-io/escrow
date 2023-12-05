@@ -17,6 +17,7 @@ dlc = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-manager = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-messages = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc-sled-storage-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
+escrow_agent_messages = { path = "../escrow_agent_messages" }
 hex = "0.4.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
