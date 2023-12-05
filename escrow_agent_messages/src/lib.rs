@@ -1,4 +1,17 @@
+use dlc_manager::Oracle;
 use serde::{Deserialize, Serialize};
+
+pub trait EscrowAgent: Oracle {
+    fn request_adjudication(
+        &self,
+        adjudication_request: AdjudicationRequest,
+    ) -> Result<AdjudicationRequestStatus, String>;
+
+    fn get_adjudication_request_status(
+        &self,
+        event_id: &str,
+    ) -> Result<AdjudicationRequestStatus, String>;
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct AdjudicationRequest {
