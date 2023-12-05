@@ -31,6 +31,7 @@ pub struct AdjudicationRequestStatus {
 pub struct BountyTemplate {
     pub title: String,
     pub description: String,
+    pub oracle_event_id: String,
 }
 
 #[derive(Serialize, Deserialize)]
