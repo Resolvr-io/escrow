@@ -1,0 +1,5 @@
+# Cargo build output.
+/target/
+
+# Ignore cargo lock file because this is a library.
+Cargo.lock

@@ -842,6 +842,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "escrow_agent_messages"
+version = "0.0.0"
+dependencies = [
+ "dlc-manager",
+ "serde",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2466,6 +2474,7 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-sled-storage-provider",
+ "escrow_agent_messages",
  "hex",
  "serde",
  "serde_json",
