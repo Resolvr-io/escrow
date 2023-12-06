@@ -1,3 +1,5 @@
+export const RELAYS = ["wss://relay.damus.io", "wss://nos.lol"];
+
 export enum ContractStatus {
   opened = "Opened",
   sent = "Sent",

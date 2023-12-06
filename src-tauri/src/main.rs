@@ -27,11 +27,36 @@ use std::str::FromStr;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 
-// TODO: Remove this example command.
+use keyring::Entry;
+
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
+    let entry = match Entry::new("resolvr", npub) {
+        Ok(entry) => entry,
+        Err(_e) => return format!("error"),
+    };
+
+    if let Err(_e) = entry.set_password(nsec) {
+        return format!("error");
+    }
+
+    format!("success")
+}
+
+
+#[tauri::command]
+fn get_nsec(npub: &str) -> String {
+    let entry = match Entry::new("resolvr", npub) {
+        Ok(entry) => entry,
+        Err(_e) => return format!("error"),
+    };
+
+    match entry.get_password() {
+        // Ok(password) => format!("My password is '{}'", password),
+        Ok(password) => format!("{}", password),
+        Err(_e) => format!("error"),
+    }
 }
 
 #[tauri::command]
@@ -335,7 +360,8 @@ async fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            greet,
+            save_secret_key_to_keychain,
+            get_nsec,
             request_oracle_adjudication,
             get_oracle_adjudication_request_status,
             connect_to_bitcoin_core,
@@ -348,6 +374,7 @@ async fn main() {
         .manage(dlc_msg_handler)
         .manage(dlc_storage_provider)
         .manage(dlc_manager_or)
+        .plugin(tauri_plugin_store::Builder::default().build())
         .run(context)
         .expect("Error while running Tauri application.");
 }
