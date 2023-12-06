@@ -42,7 +42,7 @@ fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
         return "error".to_string();
     }
 
-    return "success".to_string();
+    "success".to_string()
 }
 
 #[tauri::command]
@@ -53,7 +53,7 @@ fn get_nsec(npub: &str) -> String {
     };
 
     match entry.get_password() {
-        Ok(password) => format!("{}", password),
+        Ok(password) => password.to_string(),
         Err(_e) => "error".to_string(),
     }
 }
