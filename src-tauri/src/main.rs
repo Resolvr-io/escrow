@@ -35,27 +35,26 @@ use keyring::Entry;
 fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
     let entry = match Entry::new("resolvr", npub) {
         Ok(entry) => entry,
-        Err(_e) => return format!("error"),
+        Err(_e) => return "error",
     };
 
     if let Err(_e) = entry.set_password(nsec) {
-        return format!("error");
+        return "error";
     }
 
-    format!("success")
+   return "success"
 }
 
 #[tauri::command]
 fn get_nsec(npub: &str) -> String {
     let entry = match Entry::new("resolvr", npub) {
         Ok(entry) => entry,
-        Err(_e) => return format!("error"),
+        Err(_e) => return "error",
     };
 
     match entry.get_password() {
-        // Ok(password) => format!("My password is '{}'", password),
         Ok(password) => format!("{}", password),
-        Err(_e) => format!("error"),
+        Err(_e) => "error",
     }
 }
 
