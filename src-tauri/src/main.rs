@@ -29,10 +29,9 @@ use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 
 use keyring::Entry;
-
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
+fn save_nostr_nsec_to_keychain(npub: &str, nsec: &str) -> String {
     let entry = match Entry::new("resolvr", npub) {
         Ok(entry) => entry,
         Err(_e) => return "error".to_string(),
@@ -46,7 +45,7 @@ fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
 }
 
 #[tauri::command]
-fn get_nsec(npub: &str) -> String {
+fn get_nostr_nsec_from_keychain(npub: &str) -> String {
     let entry = match Entry::new("resolvr", npub) {
         Ok(entry) => entry,
         Err(_e) => return "error".to_string(),
@@ -357,8 +356,8 @@ async fn main() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            save_secret_key_to_keychain,
-            get_nsec,
+            save_nostr_nsec_to_keychain,
+            get_nostr_nsec_from_keychain,
             request_oracle_adjudication,
             get_oracle_adjudication_request_status,
             connect_to_bitcoin_core,
