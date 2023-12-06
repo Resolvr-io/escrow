@@ -1,0 +1,8 @@
+[package]
+name = "escrow_agent_messages"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+dlc-manager = { git = "https://github.com/tvolk131/rust-dlc.git" }
+serde = { version = "1.0", features = ["derive"] }

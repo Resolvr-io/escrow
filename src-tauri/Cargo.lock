@@ -1103,6 +1103,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "escrow_agent_messages"
+version = "0.0.0"
+dependencies = [
+ "dlc-manager",
+ "serde",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3000,6 +3008,7 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-sled-storage-provider",
+ "escrow_agent_messages",
  "hex",
  "keyring",
  "serde",
