@@ -45,7 +45,6 @@ fn save_secret_key_to_keychain(nsec: &str, npub: &str) -> String {
     format!("success")
 }
 
-
 #[tauri::command]
 fn get_nsec(npub: &str) -> String {
     let entry = match Entry::new("resolvr", npub) {
