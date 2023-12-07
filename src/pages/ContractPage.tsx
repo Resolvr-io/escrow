@@ -1,26 +1,15 @@
-import { Button } from "~/components/ui/button";
-import Contracts from "~/components/contracts/contracts";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardFooter,
   CardTitle,
 } from "~/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useParams } from "react-router-dom";
 import contracts from "~/static/contracts";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { SatoshiV2Icon } from "@bitcoin-design/bitcoin-icons-react/filled";
-import {
-  createBrowserRouter,
-  createRoutesFromElements,
-  Link,
-  Route,
-  RouterProvider,
-  Routes,
-} from "react-router-dom";
+import { Link } from "react-router-dom";
 import Stepper from "~/components/ui/stepper";
 import { ContractStatus, StepperStatus } from "~/lib/constants";
 
@@ -41,7 +30,7 @@ export default function ContractPage() {
     createdOn,
     id,
     author,
-  } = contract!;
+  } = contract;
   const steps = [
     {
       id: ContractStatus.opened,
@@ -88,6 +77,7 @@ export default function ContractPage() {
     default:
       break;
   }
+
   return (
     <div className="flex-1 flex-col space-y-8 p-8 pt-6 md:flex">
       <Link
@@ -98,7 +88,7 @@ export default function ContractPage() {
         <span>Back to all contracts</span>
       </Link>
 
-      <div className="">
+      <div>
         <Stepper steps={steps} />
       </div>
       <div className="flex text-2xl">
@@ -107,7 +97,7 @@ export default function ContractPage() {
       </div>
 
       <div>by {author}</div>
-      <Card className="">
+      <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>

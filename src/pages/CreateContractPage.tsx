@@ -41,7 +41,6 @@ const formSchema = z.object({
 });
 
 export default function CreateContractPage() {
-  const [date, setDate] = useState<Date>();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
