@@ -20,7 +20,6 @@ export default function DashboardPage() {
       <Routes>
         <Route path="/" element={<ContractsPage />} />
         <Route path="contracts/:contractId" element={<ContractPage />} />
-
         <Route
           path="create"
           element={

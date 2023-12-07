@@ -60,11 +60,11 @@ const formSchema = z.object({
   }),
 });
 
-type Props = {
+type RegisterFormProps = {
   setFormState?: (state: "login" | "register") => void;
 };
 
-export default function RegisterForm({ setFormState }: Props) {
+export default function RegisterForm({ setFormState }: RegisterFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {

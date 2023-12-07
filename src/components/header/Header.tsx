@@ -19,8 +19,7 @@ export default function Header() {
               />
             </Link>
           </div>
-          {pubkey && <UserMenu pubkey={pubkey} />}
-          {!pubkey && <LoginButton />}
+          {pubkey ? <UserMenu pubkey={pubkey} /> : <LoginButton />}
         </div>
       </div>
     </div>

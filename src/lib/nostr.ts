@@ -48,7 +48,5 @@ export function pc(event: Event | undefined | null): Profile {
     };
   }
 
-  const profile = JSON.parse(event.content) as Profile;
-
-  return profile;
+  return JSON.parse(event.content) as Profile;
 }

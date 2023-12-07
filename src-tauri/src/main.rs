@@ -29,32 +29,20 @@ use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 
 use keyring::Entry;
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+
+static RESOLVR_KEYRING_SERVICE: &str = "resolvr";
+
 #[tauri::command]
-fn save_nostr_nsec_to_keychain(npub: &str, nsec: &str) -> String {
-    let entry = match Entry::new("resolvr", npub) {
-        Ok(entry) => entry,
-        Err(_e) => return "error".to_string(),
-    };
-
-    if let Err(_e) = entry.set_password(nsec) {
-        return "error".to_string();
-    }
-
-    "success".to_string()
+fn save_nostr_nsec_to_keychain(npub: &str, nsec: &str) -> Result<(), String> {
+    let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
+    entry.set_password(nsec).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
-fn get_nostr_nsec_from_keychain(npub: &str) -> String {
-    let entry = match Entry::new("resolvr", npub) {
-        Ok(entry) => entry,
-        Err(_e) => return "error".to_string(),
-    };
-
-    match entry.get_password() {
-        Ok(password) => password.to_string(),
-        Err(_e) => "error".to_string(),
-    }
+fn get_nostr_nsec_from_keychain(npub: &str) -> Result<String, String> {
+    let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
+    entry.get_password().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

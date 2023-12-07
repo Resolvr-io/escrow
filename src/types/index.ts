@@ -1,12 +1,12 @@
 export type Profile = {
   relay?: string;
   publicKey?: string;
-  about: string;
+  about?: string;
   lud06?: string;
   lud16?: string;
-  name: string;
+  name?: string;
   nip05?: string;
-  picture: string;
+  picture?: string;
   website?: string;
   banner?: string;
   location?: string;

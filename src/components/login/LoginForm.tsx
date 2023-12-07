@@ -49,11 +49,11 @@ const formSchema = z.object({
   }),
 });
 
-type Props = {
+type LoginFormProps = {
   setFormState?: (state: "login" | "register") => void;
 };
 
-export default function LoginForm({ setFormState }: Props) {
+export default function LoginForm({ setFormState }: LoginFormProps) {
   const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -68,20 +68,20 @@ export default function LoginForm({ setFormState }: Props) {
     const sk = nip19.decode(nsec).data as string;
     const pk = getPublicKey(sk);
     const npub = nip19.npubEncode(pk);
-    const response: string = await invoke("save_secret_key_to_keychain", {
-      nsec: nsec,
-      npub: npub,
-    });
+    console.log("hello");
+    try {
+      await invoke("save_nostr_nsec_to_keychain", {
+        nsec: nsec,
+        npub: npub,
+      });
+      const pubkey = nip19.decode(npub).data as string;
 
-    if (response !== "success") {
-      return;
+      login(pubkey);
+
+      navigate("/");
+    } catch (e) {
+      console.log("ERROR", e);
     }
-
-    const pubkey = nip19.decode(npub).data as string;
-
-    login(pubkey);
-
-    navigate("/");
   }
 
   function switchToRegister() {
@@ -124,6 +124,7 @@ export default function LoginForm({ setFormState }: Props) {
             <Button type="submit" className="w-full">
               Login
             </Button>
+            {/*TODO: implement login with npub*/}
             {/* <div className="relative"> */}
             {/*   <div className="absolute inset-0 flex items-center"> */}
             {/*     <span className="w-full border-t" /> */}

@@ -22,10 +22,14 @@ export default function SettingsPage() {
 
   async function getNsec() {
     const npub = nip19.npubEncode(pubkey);
-    const nsec: string = await invoke("get_nsec", {
-      npub: npub,
-    });
-    return nsec;
+    try {
+      const nsec: string = await invoke("get_nostr_nsec_from_keychain", {
+        npub: npub,
+      });
+      return nsec;
+    } catch (e) {
+      return null;
+    }
   }
 
   useEffect(() => {
@@ -72,6 +76,14 @@ export default function SettingsPage() {
     event.id = getEventHash(event);
 
     const nsec = await getNsec();
+    if (!nsec) {
+      toast({
+        title: "Profile not updated",
+        description: "Unable to find nsec in keychain.",
+      });
+      return;
+    }
+
     const sk = nip19.decode(nsec).data as string;
     event.sig = getSignature(event, sk);
 

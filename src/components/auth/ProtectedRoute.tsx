@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children }: Props) {
   const { pubkey } = useAuthStore();
   const location = useLocation();
 
-  if (!pubkey || pubkey === "") {
+  if (!pubkey) {
     // Redirect them to the /login page, but save the current location they were
     // trying to go to when they were redirected. This allows us to send them
     // along to that location after they login.

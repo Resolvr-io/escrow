@@ -12,11 +12,11 @@ import { Link } from "react-router-dom";
 import { useEffect } from "react";
 import useEventStore from "~/stores/eventStore";
 
-type Props = {
+type UserMenuProps = {
   pubkey: string;
 };
 
-export default function UserMenu({ pubkey }: Props) {
+export default function UserMenu({ pubkey }: UserMenuProps) {
   const { profileMap } = useEventStore();
 
   useEffect(() => {
