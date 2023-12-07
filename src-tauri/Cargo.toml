@@ -11,6 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
+anyhow = "1.0.75"
 bitcoin = "0.29.2"
 bitcoin-rpc-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
 dlc = { git = "https://github.com/tvolk131/rust-dlc.git" }
@@ -20,6 +21,8 @@ dlc-sled-storage-provider = { git = "https://github.com/tvolk131/rust-dlc.git" }
 escrow_agent_messages = { path = "../escrow_agent_messages" }
 hex = "0.4.3"
 keyring = "2"
+mocks = { git = "https://github.com/tvolk131/rust-dlc.git" }
+nostr-sdk = "0.25.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "1.5", features = ["shell-open"] }
