@@ -3,14 +3,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "~/components/ui/avatar";
 import { pc } from "~/lib/nostr";
 import { useEffect } from "react";
 import { fetchProfileEvent } from "~/lib/auth";
+import { BOT_AVATAR_ENDPOINT } from "~/lib/constants";
 
-type Props = {
+type UserAvatarProps = {
   pubkey: string;
 };
 
-export default function UserAvatar({ pubkey }: Props) {
+export default function UserAvatar({ pubkey }: UserAvatarProps) {
   const seed = pubkey;
-  const BOT_AVATAR_ENDPOINT = `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${seed}`;
   const { profileMap, addProfile } = useEventStore();
 
   async function fetchProfile() {
@@ -32,7 +32,10 @@ export default function UserAvatar({ pubkey }: Props) {
   return (
     <Avatar>
       <AvatarImage
-        src={pc(profileMap[pubkey]).picture || BOT_AVATAR_ENDPOINT}
+        src={
+          pc(profileMap[pubkey]).picture ||
+          `${BOT_AVATAR_ENDPOINT}?seed=${seed}`
+        }
       />
       <AvatarFallback>Avatar</AvatarFallback>
     </Avatar>

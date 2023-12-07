@@ -8,6 +8,7 @@ export default function LoginPage() {
   return (
     <div className="-mt-28 flex h-screen items-center justify-center">
       {formState === "login" && <LoginForm setFormState={setFormState} />}
+      {/*TODO: implement register form for new users*/}
       {/* {formState === "register" && <RegisterForm setFormState={setFormState} />} */}
     </div>
   );

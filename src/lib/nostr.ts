@@ -23,6 +23,17 @@ export async function publish(
   }
 }
 
+/**
+ * Converts an event object into a Profile object.
+ *
+ * This function takes an event, which is expected to contain a stringified JSON
+ * representation of a Profile in its content property. If the event is null or undefined,
+ * it returns an empty Profile object. Otherwise, it parses the content of the event
+ * and returns the parsed Profile object.
+ *
+ * @param {Event | undefined | null} event - The event object containing the profile information.
+ * @returns {Profile} The parsed profile object. Returns an empty profile object if the input is null or undefined.
+ */
 export function pc(event: Event | undefined | null): Profile {
   if (!event) {
     return {

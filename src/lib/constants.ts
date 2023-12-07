@@ -4,6 +4,8 @@
 // initialize a list of relays that the user can modify.
 export const RELAYS = ["wss://relay.damus.io", "wss://nos.lol"];
 
+export const BOT_AVATAR_ENDPOINT = "https://api.dicebear.com/7.x/bottts-neutral/svg";
+
 export enum ContractStatus {
   opened = "Opened",
   sent = "Sent",

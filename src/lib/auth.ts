@@ -2,6 +2,7 @@ import { type Filter, type Event, SimplePool } from "nostr-tools";
 import { Store } from "tauri-plugin-store";
 import useAuthStore from "~/stores/authStore";
 import useEventStore from "~/stores/eventStore";
+import { RELAYS } from "./constants";
 
 const store = new Store(".credentials.dat");
 
@@ -16,8 +17,7 @@ export async function fetchProfileEvent(pubkey: string): Promise<Event | null> {
     kinds: [0],
     authors: [pubkey],
   };
-  const relays = ["wss://relay.damus.io", "wss://nos.lol"];
-  const profileEvent = await pool.get(relays, filter);
+  const profileEvent = await pool.get(RELAYS, filter);
   if (profileEvent) {
     addProfile(pubkey, profileEvent);
   }
