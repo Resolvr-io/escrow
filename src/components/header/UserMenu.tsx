@@ -25,7 +25,7 @@ export default function UserMenu({ pubkey }: UserMenuProps) {
     }
 
     fetchProfileEvent(pubkey);
-  }, [profileMap[pubkey]]);
+  }, [pubkey]);
 
   return (
     <DropdownMenu>

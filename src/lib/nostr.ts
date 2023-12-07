@@ -36,16 +36,7 @@ export async function publish(
  */
 export function pc(event: Event | undefined | null): Profile {
   if (!event) {
-    return {
-      name: "",
-      about: "",
-      picture: "",
-      banner: "",
-      lud06: "",
-      lud16: "",
-      nip05: "",
-      website: "",
-    };
+    return {};
   }
 
   return JSON.parse(event.content) as Profile;

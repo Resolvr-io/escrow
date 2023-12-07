@@ -13,6 +13,7 @@ export default function UserAvatar({ pubkey }: UserAvatarProps) {
   const seed = pubkey;
   const { profileMap, addProfile } = useEventStore();
 
+  // TODO: break this out into a hook
   async function fetchProfile() {
     const profile = await fetchProfileEvent(pubkey);
     if (!profile) {

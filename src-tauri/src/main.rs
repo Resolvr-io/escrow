@@ -35,8 +35,7 @@ static RESOLVR_KEYRING_SERVICE: &str = "resolvr";
 #[tauri::command]
 fn save_nostr_nsec_to_keychain(npub: &str, nsec: &str) -> Result<(), String> {
     let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
-    entry.set_password(nsec).map_err(|e| e.to_string())?;
-    Ok(())
+    entry.set_password(nsec).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
