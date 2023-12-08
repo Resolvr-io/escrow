@@ -85,9 +85,10 @@ For Resolvr Escrow, both the bounty maker and taker would be required to agree o
 How will escrow help me resolve disputes?
 
 Where is the code hosted?
-* Microservice (rocket?)
-* Self-hosted 
-* In the browser (WASM)
+* ~~Microservice (rocket?)~~
+* ~~Self-hosted~~ 
+* ~~In the browser (WASM)~~
+* Client-side with nostr for node-to-node communication.
 
 Why use this stack?
 
