@@ -38,6 +38,9 @@ export default function UserMenu({ pubkey }: UserMenuProps) {
         <DropdownMenuItem asChild>
           <Link to="/settings">Settings</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/node">Bitcoin Node</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={logout}>Sign Out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
