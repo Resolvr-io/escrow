@@ -19,9 +19,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeftIcon } from "@radix-ui/react-icons";
 
 const formSchema = z.object({
-  host: z.string().regex(/^https?:\/\//, {
-    message: "Host must begin with http or https.",
-  }),
+  host: z.string(),
   port: z.coerce.number().positive({
     message: "Port must be a positive integer",
   }),
