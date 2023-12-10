@@ -16,10 +16,16 @@ pub enum BountyOutcome {
     Insufficient,
 }
 
+pub struct NostrNip4ResolvrOracle {
+    mock_oracle: Arc<Mutex<MockOracle>>,
+}
+
 impl NostrNip4ResolvrOracle {
     // TODO: Add an nPub key to the constructor (I don't know what type it is yet).
     pub fn new_from_npub() -> Self {
-        Self {}
+        Self {
+            mock_oracle: Arc::from(Mutex::from(MockOracle::new())),
+        }
     }
 }
 
@@ -48,13 +54,9 @@ impl ToString for BountyOutcome {
     }
 }
 
-pub struct ResolvrOracle {
-    mock_oracle: Arc<Mutex<MockOracle>>,
-}
-
-impl ResolvrOracle {
-    pub fn new_from_generated_keypair() -> ResolvrOracle {
-        ResolvrOracle {
+impl NostrNip4ResolvrOracle {
+    pub fn new_from_generated_keypair() -> Self {
+        Self {
             mock_oracle: Arc::from(Mutex::from(MockOracle::new())),
         }
     }
@@ -106,7 +108,7 @@ impl ResolvrOracle {
     }
 }
 
-impl Oracle for ResolvrOracle {
+impl Oracle for NostrNip4ResolvrOracle {
     fn get_public_key(&self) -> bitcoin::XOnlyPublicKey {
         self.mock_oracle.lock().unwrap().get_public_key()
     }

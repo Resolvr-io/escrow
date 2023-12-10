@@ -16,8 +16,10 @@ use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
+use escrow_agent_messages::EscrowAgent;
+use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
 use resolvr_oracle::{
-    ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
+    NostrNip4ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -59,25 +61,6 @@ fn get_oracle_adjudication_request_status(
 }
 
 #[tauri::command]
-fn request_oracle_adjudication(
-    _adjudication_request: AdjudicationRequest,
-    _oracle: tauri::State<Arc<ResolvrOracle>>,
-) -> Result<AdjudicationRequestStatus, String> {
-    // TODO: Implement by sending a message to the oracle and waiting for a
-    // response.
-    panic!("Not implemented.");
-}
-
-#[tauri::command]
-fn get_oracle_adjudication_request_status(
-    _oracle_event_id: String,
-) -> Result<AdjudicationRequestStatus, String> {
-    // TODO: Implement by sending a message to the oracle and waiting for a
-    // response.
-    panic!("Not implemented.");
-}
-
-#[tauri::command]
 fn connect_to_bitcoin_core(
     bitcoin_core_config: BitcoinCoreConfig,
     oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
@@ -96,7 +79,7 @@ fn connect_to_bitcoin_core(
     };
 
     // TODO: Add hardcoded Resolvr oracle.
-    let oracles: HashMap<XOnlyPublicKey, Arc<ResolvrOracle>> = HashMap::new();
+    let oracles: HashMap<XOnlyPublicKey, Arc<NostrNip4ResolvrOracle>> = HashMap::new();
 
     let mut dlc_manager_or: MutexGuard<Option<ResolvrDlcManager>> = dlc_manager_or.lock().unwrap();
     let binding: &mut Option<ResolvrDlcManager> = dlc_manager_or.deref_mut();
@@ -316,7 +299,7 @@ type ResolvrDlcManager = dlc_manager::manager::Manager<
     Arc<BitcoinCoreProvider>,
     Arc<BitcoinCoreProvider>,
     Arc<SledStorageProvider>,
-    Arc<ResolvrOracle>,
+    Arc<NostrNip4ResolvrOracle>,
     Arc<SystemTimeProvider>,
     Arc<BitcoinCoreProvider>,
 >;
