@@ -3,7 +3,7 @@ name: Dev CI
 on:
   push:
     branches:
-      - '**' # Matches every branch.
+      - "**" # Matches every branch.
 
 jobs:
   test-rust:
@@ -12,33 +12,46 @@ jobs:
         folder: [escrow_agent_messages, dlc_test, src-tauri]
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v2
-    - name: Install Rust Toolchain
-      uses: actions-rs/toolchain@v1.0.6
-      with:
-        toolchain: stable
-        override: true
-        components: rustfmt, clippy
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-    - name: Run `cargo check`
-      run: |
-        cd "${{ matrix.folder }}"
-        cargo check
-        cd ..
-    - name: Run `cargo fmt`
-      run: |
-        cd "${{ matrix.folder }}"
-        cargo fmt -- --check
-        cd ..
-    - name: Run `cargo clippy`
-      run: |
-        cd "${{ matrix.folder }}"
-        cargo clippy -- -D warnings
-        cd ..
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Run `cargo check`
+        run: |
+          cd "${{ matrix.folder }}"
+          cargo check
+          cd ..
+      - name: Run `cargo fmt`
+        run: |
+          cd "${{ matrix.folder }}"
+          cargo fmt -- --check
+          cd ..
+      - name: Run `cargo clippy`
+        run: |
+          cd "${{ matrix.folder }}"
+          cargo clippy -- -D warnings
+          cd ..
+  test-ts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: npm install
+      - name: Run Prettier
+        run: bun prettier --check "**/*.{ts,tsx}"
   test-tauri:
     strategy:
       fail-fast: false
@@ -46,21 +59,21 @@ jobs:
         platform: [macos-latest, ubuntu-20.04, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Install Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-    - name: Install Rust Toolchain (stable)
-      uses: dtolnay/rust-toolchain@stable
-    - name: Install dependencies (Ubuntu only)
-      if: matrix.platform == 'ubuntu-20.04'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-    - name: Install frontend dependencies
-      run: npm install
-    - name: Build Tauri app
-      uses: tauri-apps/tauri-action@v0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Rust Toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

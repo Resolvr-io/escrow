@@ -1,11 +1,6 @@
 import { Button } from "~/components/ui/button";
 import Contracts from "~/components/contracts/contracts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Link } from "react-router-dom";
 
@@ -17,9 +12,7 @@ export default function ContractsPage() {
           <h2 className="text-3xl font-bold tracking-tight">Contracts</h2>
           <div className="flex items-center space-x-2">
             <Link to="/create">
-              <Button>
-                Create Contract
-              </Button>
+              <Button>Create Contract</Button>
             </Link>
           </div>
         </div>
