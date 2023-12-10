@@ -139,7 +139,7 @@ dependencies = [
  "polling 2.8.0",
  "rustix 0.37.27",
  "slab",
- "socket2 0.4.10",
+ "socket2",
  "waker-fn",
 ]
 
@@ -371,7 +371,7 @@ dependencies = [
 [[package]]
 name = "bitcoin-rpc-provider"
 version = "0.1.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bitcoin",
  "bitcoincore-rpc",
@@ -956,7 +956,7 @@ checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bitcoin",
  "miniscript",
@@ -967,7 +967,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -982,7 +982,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -993,7 +993,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "dlc-manager",
  "sled",
@@ -1002,7 +1002,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2226,20 +2226,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "mio"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dce281c5e46beae905d4de1870d8b1509a9142b62eedf18b443b011ca8343d0"
-dependencies = [
- "libc",
- "wasi 0.11.0+wasi-snapshot-preview1",
- "windows-sys 0.48.0",
-]
-
-[[package]]
 name = "mocks"
 version = "0.1.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -3495,7 +3484,7 @@ checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/tvolk131/rust-dlc.git#61a2e67068b7699c5792ef20efe38a6b4a218013"
+source = "git+https://github.com/tvolk131/rust-dlc.git#497af6eec8028d685787294848aa436a8989aad8"
 dependencies = [
  "bdk",
  "bitcoin",
@@ -3550,16 +3539,6 @@ checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "socket2"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5fac59a5cb5dd637972e5fca70daf0523c9067fcdc4842f053dae04a18f8e9"
-dependencies = [
- "libc",
- "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4095,15 +4074,9 @@ checksum = "d0c014766411e834f7af5b8f4cf46257aab4036ca95e9d2c144a10f59ad6f5b9"
 dependencies = [
  "backtrace",
  "bytes",
- "libc",
- "mio",
  "num_cpus",
- "parking_lot 0.12.1",
  "pin-project-lite",
- "signal-hook-registry",
- "socket2 0.5.5",
  "tokio-macros",
- "windows-sys 0.48.0",
 ]
 
 [[package]]
