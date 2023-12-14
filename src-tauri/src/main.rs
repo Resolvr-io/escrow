@@ -3,6 +3,7 @@
 
 mod contract;
 mod resolvr_oracle;
+mod nostr;
 
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
