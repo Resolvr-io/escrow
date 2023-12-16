@@ -27,7 +27,7 @@ const formSchema = z.object({
   rpcPassword: z.string(),
 });
 
-export default function BitconNodePage() {
+export default function BitcoinNodePage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,10 +47,10 @@ export default function BitconNodePage() {
     };
 
     try {
-      await invoke("connect_to_bitcoin_core", {
-        bitcoinCoreConfig:  bitcoinCoreConfig,
-      });
+      // TODO: add toast on success
+      await invoke("connect_to_bitcoin_core", { bitcoinCoreConfig });
     } catch (e) {
+      // TODO: handle error in UI
       console.log("ERROR", e);
     }
   }
@@ -76,7 +76,9 @@ export default function BitconNodePage() {
                 <FormControl>
                   <Input placeholder="http://..." {...field} />
                 </FormControl>
-                <FormDescription>Your node host URL</FormDescription>
+                <FormDescription>
+                  The exposed RPC host of your node
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -90,7 +92,9 @@ export default function BitconNodePage() {
                 <FormControl>
                   <Input type="number" {...field} />
                 </FormControl>
-                <FormDescription>The exposed port of your node</FormDescription>
+                <FormDescription>
+                  The exposed RPC port of your node
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -104,7 +108,7 @@ export default function BitconNodePage() {
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
-                <FormDescription>The RPC user of your node</FormDescription>
+                <FormDescription>The RPC username of your node</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -123,9 +127,7 @@ export default function BitconNodePage() {
               </FormItem>
             )}
           />
-          <Button type="submit">
-            Connect
-          </Button>
+          <Button type="submit">Connect</Button>
         </form>
       </Form>
     </div>
