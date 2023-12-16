@@ -7,12 +7,12 @@ import { pc, publish } from "~/lib/nostr";
 import useEventStore from "~/stores/eventStore";
 import useAuthStore from "~/stores/authStore";
 
-import { invoke } from "@tauri-apps/api";
 import { RELAYS } from "~/lib/constants";
 import { Button } from "~/components/ui/button";
 
 import { useToast } from "~/components/ui/use-toast";
 import { fetchProfileEvent } from "~/lib/auth";
+import { getNostrNsecFromKeychain } from "~/tauriApi";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile>(pc(null));
@@ -23,10 +23,7 @@ export default function SettingsPage() {
   async function getNsec() {
     const npub = nip19.npubEncode(pubkey);
     try {
-      const nsec: string = await invoke("get_nostr_nsec_from_keychain", {
-        npub: npub,
-      });
-      return nsec;
+      return await getNostrNsecFromKeychain(npub);
     } catch (e) {
       return null;
     }

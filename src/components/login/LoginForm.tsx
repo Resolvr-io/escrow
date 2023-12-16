@@ -12,7 +12,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { Input } from "~/components/ui/input";
-import { invoke } from "@tauri-apps/api";
 
 import { getPublicKey, nip19 } from "nostr-tools";
 
@@ -30,6 +29,7 @@ import {
 } from "~/components/ui/form";
 
 import { login } from "~/lib/auth";
+import { saveNostrNsecToKeychain } from "~/tauriApi";
 
 function isNsec(nsec: string) {
   try {
@@ -68,12 +68,8 @@ export default function LoginForm({ setFormState }: LoginFormProps) {
     const sk = nip19.decode(nsec).data as string;
     const pk = getPublicKey(sk);
     const npub = nip19.npubEncode(pk);
-    console.log("hello");
     try {
-      await invoke("save_nostr_nsec_to_keychain", {
-        nsec: nsec,
-        npub: npub,
-      });
+      await saveNostrNsecToKeychain(npub, nsec);
       const pubkey = nip19.decode(npub).data as string;
 
       login(pubkey);
