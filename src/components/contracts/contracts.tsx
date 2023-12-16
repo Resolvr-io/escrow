@@ -7,7 +7,11 @@ export default function Contracts() {
     <div className="space-y-4">
       {contracts.map((contract) => {
         return (
-          <Link key={contract.id} className="block" to={`contracts/${contract.id}`}>
+          <Link
+            key={contract.id}
+            className="block"
+            to={`contracts/${contract.id}`}
+          >
             <Contract contract={contract} />
           </Link>
         );
