@@ -1,12 +1,19 @@
 use anyhow::Result;
-use dlc_messages::{AcceptDlc, OfferDlc, SignDlc};
+use dlc_messages::{AcceptDlc, Message, OfferDlc, SignDlc};
 use nostr_sdk::nips::nip04;
-use nostr_sdk::prelude::{FromBech32, Keys, SecretKey};
+use nostr_sdk::prelude::{Keys, SecretKey};
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::Client;
 use nostr_sdk::{Filter, Kind, RelayMessage, RelayPoolNotification};
+use secp256k1_zkp::Parity;
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
+
+use super::helper::nostr_xonly_to_bitcoin_xonly;
+
+// TODO: I'm pretty sure we can't just assume that the parity is even.
+const PUBLIC_KEY_PARITY: Parity = Parity::Even;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ResolvrEscrowMessage {
@@ -23,23 +30,39 @@ impl ResolvrEscrowMessage {
     fn from_encoded_hex_string(encoded_hex_string: &str) -> Result<Self> {
         Ok(bincode::deserialize(&hex::decode(encoded_hex_string)?)?)
     }
+
+    pub fn to_dlc_message(self) -> Message {
+        match self {
+            ResolvrEscrowMessage::OfferDlc(offer_dlc) => Message::Offer(offer_dlc),
+            ResolvrEscrowMessage::AcceptDlc(accept_dlc) => Message::Accept(accept_dlc),
+            ResolvrEscrowMessage::SignDlc(sign_dlc) => Message::Sign(sign_dlc),
+        }
+    }
+
+    pub fn from_dlc_message(msg: Message) -> Option<Self> {
+        match msg {
+            Message::Offer(offer_dlc) => Some(ResolvrEscrowMessage::OfferDlc(offer_dlc)),
+            Message::Accept(accept_dlc) => Some(ResolvrEscrowMessage::AcceptDlc(accept_dlc)),
+            Message::Sign(sign_dlc) => Some(ResolvrEscrowMessage::SignDlc(sign_dlc)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct NostrEncodedDirectMessage {
-    sender: XOnlyPublicKey,
-    msg: ResolvrEscrowMessage,
+    pub sender: bitcoin::secp256k1::PublicKey,
+    pub msg: ResolvrEscrowMessage,
 }
 
 pub struct NostrNip04MessageProvider {
     client: Client,
-    rx: Receiver<NostrEncodedDirectMessage>,
+    rx: Arc<Mutex<Receiver<NostrEncodedDirectMessage>>>,
     notifications_handle: tokio::task::JoinHandle<()>,
 }
 
 impl NostrNip04MessageProvider {
-    pub async fn new(nostr_nsec: String) -> Result<Self> {
-        let secret_key = SecretKey::from_bech32(nostr_nsec)?;
+    pub async fn new(secret_key: SecretKey) -> Result<Self> {
         let keys = Keys::new(secret_key);
         let client = Client::new(&keys);
 
@@ -78,8 +101,12 @@ impl NostrNip04MessageProvider {
                             {
                                 if let Ok(msg) = ResolvrEscrowMessage::from_encoded_hex_string(&msg)
                                 {
+                                    // TODO: Verify that [key -> string -> key] works.
+                                    let converted_xonly_pubkey =
+                                        nostr_xonly_to_bitcoin_xonly(&event.pubkey);
                                     let _ = tx.send(NostrEncodedDirectMessage {
-                                        sender: event.pubkey,
+                                        sender: converted_xonly_pubkey
+                                            .public_key(PUBLIC_KEY_PARITY),
                                         msg,
                                     });
                                 }
@@ -99,13 +126,13 @@ impl NostrNip04MessageProvider {
 
         Ok(Self {
             client,
-            rx,
+            rx: Arc::from(Mutex::from(rx)),
             notifications_handle,
         })
     }
 
     pub fn pop(&self) -> Option<NostrEncodedDirectMessage> {
-        self.rx.try_recv().ok()
+        self.rx.lock().unwrap().try_recv().ok()
     }
 
     pub async fn send(&self, recipient: XOnlyPublicKey, msg: ResolvrEscrowMessage) -> Result<()> {

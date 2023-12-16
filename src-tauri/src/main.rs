@@ -2,10 +2,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod contract;
+mod helper;
+mod nostr;
 mod resolvr_oracle;
 
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::XOnlyPublicKey;
 use bitcoin_rpc_provider::BitcoinCoreProvider;
 use contract::JsonContract;
 use dlc::EnumerationPayout;
@@ -15,9 +15,13 @@ use dlc_manager::contract::{Contract, ContractDescriptor};
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
+use dlc_messages::Message;
 use dlc_sled_storage_provider::SledStorageProvider;
 use escrow_agent_messages::EscrowAgent;
 use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
+use helper::bitcoin_xonly_to_nostr_xonly;
+use keyring::Entry;
+use nostr::{NostrNip04MessageProvider, ResolvrEscrowMessage};
 use resolvr_oracle::{
     NostrNip4ResolvrOracle, BOUNTY_COMPLETE_ORACLE_MESSAGE, BOUNTY_INSUFFICIENT_ORACLE_MESSAGE,
 };
@@ -25,23 +29,60 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::str::FromStr;
-use std::sync::MutexGuard;
-use std::sync::{Arc, Mutex};
-
-use keyring::Entry;
+use std::sync::Arc;
+use tokio::sync::{Mutex, MutexGuard};
 
 static RESOLVR_KEYRING_SERVICE: &str = "resolvr";
 
 #[tauri::command]
-fn save_nostr_nsec_to_keychain(npub: &str, nsec: &str) -> Result<(), String> {
+async fn save_nostr_nsec_to_keychain(
+    npub: &str,
+    nsec: &str,
+    msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
+) -> Result<(), String> {
+    let mut msg_provider_or = msg_provider_or.lock().await;
+    let binding = msg_provider_or.deref_mut();
+    if binding.is_none() {
+        let secp = nostr_sdk::secp256k1::Secp256k1::new();
+        *binding = Some(
+            NostrNip04MessageProvider::new(
+                nostr_sdk::prelude::KeyPair::from_seckey_str(&secp, &nsec)
+                    .unwrap()
+                    .secret_key(),
+            )
+            .await
+            .unwrap(),
+        );
+    }
+
     let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
     entry.set_password(nsec).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_nostr_nsec_from_keychain(npub: &str) -> Result<String, String> {
+async fn get_nostr_nsec_from_keychain(
+    npub: &str,
+    msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
+) -> Result<String, String> {
     let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
-    entry.get_password().map_err(|e| e.to_string())
+    let nsec = entry.get_password().map_err(|e| e.to_string())?;
+
+    let mut msg_provider_or = msg_provider_or.lock().await;
+    let binding = msg_provider_or.deref_mut();
+    if binding.is_none() {
+        let secp = nostr_sdk::secp256k1::Secp256k1::new();
+        *binding = Some(
+            NostrNip04MessageProvider::new(
+                nostr_sdk::prelude::KeyPair::from_seckey_str(&secp, &nsec)
+                    .unwrap()
+                    .secret_key(),
+            )
+            .await
+            .unwrap(),
+        );
+    }
+
+    Ok(nsec)
 }
 
 #[tauri::command]
@@ -61,11 +102,11 @@ fn get_oracle_adjudication_request_status(
 }
 
 #[tauri::command]
-fn connect_to_bitcoin_core(
+async fn connect_to_bitcoin_core(
     bitcoin_core_config: BitcoinCoreConfig,
     oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
-    dlc_storage: tauri::State<Arc<SledStorageProvider>>,
-    dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
+    dlc_storage: tauri::State<'_, Arc<SledStorageProvider>>,
+    dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
 ) -> Result<(), String> {
     let bitcoin_core_provider = match BitcoinCoreProvider::new(
         bitcoin_core_config.host.clone(),
@@ -78,10 +119,10 @@ fn connect_to_bitcoin_core(
         Err(e) => return Err(format!("Error creating Bitcoin Core provider: {}", e)),
     };
 
-    let mut oracles: HashMap<XOnlyPublicKey, Arc<NostrNip4ResolvrOracle>> = HashMap::new();
+    let mut oracles: HashMap<bitcoin::XOnlyPublicKey, Arc<NostrNip4ResolvrOracle>> = HashMap::new();
     oracles.insert(oracle.get_public_key(), oracle.inner().clone());
 
-    let mut dlc_manager_or: MutexGuard<Option<ResolvrDlcManager>> = dlc_manager_or.lock().unwrap();
+    let mut dlc_manager_or: MutexGuard<Option<ResolvrDlcManager>> = dlc_manager_or.lock().await;
     let binding: &mut Option<ResolvrDlcManager> = dlc_manager_or.deref_mut();
     match binding {
         Some(_) => return Err(String::from("DLC manager already initialized.")),
@@ -118,22 +159,15 @@ fn get_contracts(
 }
 
 #[tauri::command]
-fn offer_contract(
+async fn offer_contract(
     bounty_amount_sats: u64,
     taker_collateral_sats: u64,
     fee_rate_sats_per_vbyte: u64,
     oracle_event_id: String,
     counter_party_public_key: &str,
-    dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
-    oracle: tauri::State<Arc<NostrNip4ResolvrOracle>>,
+    dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
+    oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<(), String> {
-    let mut dlc_manager_or = dlc_manager_or.lock().unwrap();
-    let mut binding = dlc_manager_or.as_mut();
-    let dlc_manager = match &mut binding {
-        Some(m) => m,
-        None => return Err(String::from("DLC manager not initialized.")),
-    };
-
     let public_key = match bitcoin::secp256k1::PublicKey::from_str(counter_party_public_key) {
         Ok(pk) => pk,
         Err(e) => return Err(format!("Error parsing public key: {}", e)),
@@ -147,6 +181,13 @@ fn offer_contract(
         oracle_event_id,
     );
 
+    let mut dlc_manager_or = dlc_manager_or.lock().await;
+    let mut binding = dlc_manager_or.as_mut();
+    let dlc_manager = match &mut binding {
+        Some(m) => m,
+        None => return Err(String::from("DLC manager not initialized.")),
+    };
+
     match dlc_manager.send_offer(&dlc_contract, public_key) {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Error sending contract offer: {}", e)),
@@ -154,18 +195,11 @@ fn offer_contract(
 }
 
 #[tauri::command]
-fn accept_contract(
+async fn accept_contract(
     contract_id: String,
-    dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
-    dlc_msg_handler: tauri::State<Arc<NostrNip4DlcMessageHandler>>,
+    dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
+    dlc_msg_handler: tauri::State<'_, Arc<NostrNip04MessageProvider>>,
 ) -> Result<JsonContract, String> {
-    let mut dlc_manager_or = dlc_manager_or.lock().unwrap();
-    let mut binding = dlc_manager_or.as_mut();
-    let dlc_manager = match &mut binding {
-        Some(m) => m,
-        None => return Err(String::from("DLC manager not initialized.")),
-    };
-
     let contract_id_bytes = match hex::decode(contract_id) {
         Ok(v) => v,
         Err(e) => {
@@ -185,11 +219,25 @@ fn accept_contract(
         }
     };
 
+    let mut dlc_manager_or = dlc_manager_or.lock().await;
+    let mut binding = dlc_manager_or.as_mut();
+    let dlc_manager = match &mut binding {
+        Some(m) => m,
+        None => return Err(String::from("DLC manager not initialized.")),
+    };
+
     let (_, counter_party, accept_dlc) = match dlc_manager.accept_contract_offer(&contract_id) {
         Ok(res) => res,
         Err(e) => return Err(format!("Error accepting contract: {}", e)),
     };
-    dlc_msg_handler.send_msg(dlc_messages::Message::Accept(accept_dlc), counter_party);
+
+    dlc_msg_handler
+        .send(
+            helper::bitcoin_xonly_to_nostr_xonly(&counter_party.x_only_public_key().0),
+            nostr::ResolvrEscrowMessage::AcceptDlc(accept_dlc),
+        )
+        .await
+        .unwrap();
 
     let contract = match dlc_manager.get_store().get_contract(&contract_id) {
         Ok(v) => match v {
@@ -203,11 +251,11 @@ fn accept_contract(
 }
 
 #[tauri::command]
-fn delete_contract(
+async fn delete_contract(
     contract_id: String,
-    dlc_manager_or: tauri::State<Arc<Mutex<Option<ResolvrDlcManager>>>>,
+    dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
 ) -> Result<(), String> {
-    let mut dlc_manager_or = dlc_manager_or.lock().unwrap();
+    let mut dlc_manager_or = dlc_manager_or.lock().await;
     let mut binding = dlc_manager_or.as_mut();
     let dlc_manager = match &mut binding {
         Some(m) => m,
@@ -239,54 +287,6 @@ fn delete_contract(
     }
 }
 
-struct NostrNip4DlcMessageHandler {}
-
-impl NostrNip4DlcMessageHandler {
-    fn new() -> Self {
-        Self {}
-    }
-
-    /// Sends a message to the given counterparty to progress the state of a DLC
-    /// contract.
-    fn send_msg(&self, _msg: dlc_messages::Message, _counter_party: PublicKey) {
-        panic!("Not implemented.");
-    }
-
-    /// Returns the next incoming messages and the counterparty public key that
-    /// sent it, without removing it from the queue.
-    fn peek_next_incoming_msg(&self) -> &Option<(dlc_messages::Message, PublicKey)> {
-        panic!("Not implemented.");
-    }
-
-    /// Returns the next incoming messages and the counterparty public key that
-    /// sent it, removing it from the queue.
-    fn pop_next_incoming_msg(&self) -> Option<(dlc_messages::Message, PublicKey)> {
-        panic!("Not implemented.");
-    }
-}
-
-fn process_incoming_dlc_msgs(
-    dlc_manager: &mut ResolvrDlcManager,
-    dlc_msg_handler: &NostrNip4DlcMessageHandler,
-) -> Result<(), String> {
-    loop {
-        let (msg, counter_party) = match dlc_msg_handler.peek_next_incoming_msg() {
-            Some(next_msg) => next_msg,
-            // If there are no more messages, stop processing.
-            None => return Ok(()),
-        };
-
-        match dlc_manager.on_dlc_message(msg, *counter_party) {
-            Ok(_) => {
-                // Remove the message from the queue since it was processed
-                // successfully.
-                dlc_msg_handler.pop_next_incoming_msg();
-            }
-            Err(e) => return Err(format!("Error processing message: {}", e)),
-        };
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 struct BitcoinCoreConfig {
     host: String,
@@ -313,8 +313,6 @@ async fn main() {
     // TODO: Set the nPub to our hosted oracle (once it exists).
     let oracle = Arc::from(NostrNip4ResolvrOracle::new_from_npub());
 
-    let dlc_msg_handler = Arc::from(NostrNip4DlcMessageHandler::new());
-
     let dlc_storage_provider: Arc<SledStorageProvider> = Arc::new(
         SledStorageProvider::new(&format!(
             "{}/dlc_db_hackathon",
@@ -327,16 +325,61 @@ async fn main() {
 
     let dlc_manager_or: Arc<Mutex<Option<ResolvrDlcManager>>> = Arc::new(Mutex::new(None));
 
-    let dlc_msg_handler_clone = dlc_msg_handler.clone();
+    let msg_provider_or: Arc<Mutex<Option<NostrNip04MessageProvider>>> =
+        Arc::from(Mutex::from(None));
+
     let dlc_manager_or_clone = dlc_manager_or.clone();
+    let dlc_msg_handler_or_clone = msg_provider_or.clone();
     tokio::task::spawn(async move {
+        // Store incoming messages outside of the loop so that we can retrieve
+        // incoming messages from the message provider entirely separately from
+        // processing them and sending outgoing messages. This is necessary
+        // because the message provider and the DLC manager are both behind
+        // mutexes, and we don't want to hold both mutexes at the same time.
+        let mut incoming_dlc_messages: Vec<(Message, secp256k1_zkp::PublicKey)> = Vec::new();
+
+        // Store outgoing messages outside of the loop. See comment above.
+        let mut outgoing_dlc_messages: Vec<(Message, secp256k1_zkp::PublicKey)> = Vec::new();
+
         loop {
-            if let Some(dlc_manager) = dlc_manager_or_clone.lock().unwrap().as_mut() {
-                if let Err(e) = process_incoming_dlc_msgs(dlc_manager, &dlc_msg_handler_clone) {
-                    // TODO: Handle error.
-                    println!("Error processing incoming DLC messages: {}", e);
-                };
-            };
+            // Populate `incoming_dlc_messages` from the message provider.
+            {
+                let mut dlc_msg_handler_or = dlc_msg_handler_or_clone.lock().await;
+                if let Some(dlc_msg_handler) = dlc_msg_handler_or.as_mut() {
+                    while let Some(msg) = dlc_msg_handler.pop() {
+                        incoming_dlc_messages.push((msg.msg.to_dlc_message(), msg.sender));
+                    }
+                }
+            }
+
+            // Process `incoming_dlc_messages` and populate `outgoing_dlc_messages`.
+            {
+                let mut dlc_manager_or = dlc_manager_or_clone.lock().await;
+                if let Some(dlc_manager) = dlc_manager_or.as_mut() {
+                    while let Some((dlc_msg, sender)) = incoming_dlc_messages.pop() {
+                        if let Ok(Some(dlc_msg)) = dlc_manager.on_dlc_message(&dlc_msg, sender) {
+                            outgoing_dlc_messages.push((dlc_msg, sender));
+                        }
+                    }
+                }
+            }
+
+            // Send `outgoing_dlc_messages` to the message provider.
+            {
+                let mut dlc_msg_handler_or = dlc_msg_handler_or_clone.lock().await;
+                if let Some(dlc_msg_handler) = dlc_msg_handler_or.as_mut() {
+                    while let Some((dlc_msg, sender)) = outgoing_dlc_messages.pop() {
+                        dlc_msg_handler
+                            .send(
+                                bitcoin_xonly_to_nostr_xonly(&sender.x_only_public_key().0),
+                                ResolvrEscrowMessage::from_dlc_message(dlc_msg).unwrap(),
+                            )
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
     });
@@ -354,9 +397,9 @@ async fn main() {
             delete_contract
         ])
         .manage(oracle)
-        .manage(dlc_msg_handler)
         .manage(dlc_storage_provider)
         .manage(dlc_manager_or)
+        .manage(msg_provider_or)
         .plugin(tauri_plugin_store::Builder::default().build())
         .run(context)
         .expect("Error while running Tauri application.");
@@ -367,7 +410,7 @@ fn create_bounty_contract(
     bounty_amount_sats: u64,
     taker_collateral_sats: u64,
     fee_rate_sats_per_vbyte: u64,
-    oracle_public_key: XOnlyPublicKey,
+    oracle_public_key: bitcoin::XOnlyPublicKey,
     oracle_event_id: String,
 ) -> ContractInput {
     ContractInput {
