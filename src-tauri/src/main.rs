@@ -40,21 +40,7 @@ async fn save_nostr_nsec_to_keychain(
     nsec: &str,
     msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
 ) -> Result<(), String> {
-    let mut msg_provider_or = msg_provider_or.lock().await;
-    let binding = msg_provider_or.deref_mut();
-    if binding.is_none() {
-        let secp = nostr_sdk::secp256k1::Secp256k1::new();
-        *binding = Some(
-            NostrNip04MessageProvider::new(
-                nostr_sdk::prelude::KeyPair::from_seckey_str(&secp, &nsec)
-                    .unwrap()
-                    .secret_key(),
-            )
-            .await
-            .unwrap(),
-        );
-    }
-
+    init_msg_provider(nsec, msg_provider_or).await;
     let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
     entry.set_password(nsec).map_err(|e| e.to_string())
 }
@@ -66,7 +52,15 @@ async fn get_nostr_nsec_from_keychain(
 ) -> Result<String, String> {
     let entry = Entry::new(RESOLVR_KEYRING_SERVICE, npub).map_err(|e| e.to_string())?;
     let nsec = entry.get_password().map_err(|e| e.to_string())?;
+    init_msg_provider(&nsec, msg_provider_or).await;
 
+    Ok(nsec)
+}
+
+async fn init_msg_provider(
+    nsec: &str,
+    msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
+) {
     let mut msg_provider_or = msg_provider_or.lock().await;
     let binding = msg_provider_or.deref_mut();
     if binding.is_none() {
@@ -81,8 +75,6 @@ async fn get_nostr_nsec_from_keychain(
             .unwrap(),
         );
     }
-
-    Ok(nsec)
 }
 
 #[tauri::command]
