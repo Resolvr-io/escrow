@@ -13,3 +13,10 @@ export type Profile = {
   github?: string;
   [key: string]: unknown;
 };
+
+export type BitcoinCoreConfig = {
+  host: string;
+  port: number;
+  rpc_user: string;
+  rpc_password: string;
+};

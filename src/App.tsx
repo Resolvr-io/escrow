@@ -8,6 +8,7 @@ import Header from "~/components/header/Header";
 import { useEffect } from "react";
 import { restoreLogin } from "~/lib/auth";
 import SettingsPage from "./pages/SettingsPage";
+import BitcoinNodePage from "./pages/BitcoinNodePage";
 
 export default function DashboardPage() {
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function DashboardPage() {
           }
         />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/node" element={<BitcoinNodePage />} />
         <Route
           path="/settings"
           element={
