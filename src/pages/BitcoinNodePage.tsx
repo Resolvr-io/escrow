@@ -19,8 +19,10 @@ import { Link } from "react-router-dom";
 import { ArrowLeftIcon } from "@radix-ui/react-icons";
 
 const formSchema = z.object({
-  host: z.string(),
-  port: z.coerce.number().positive({
+  host: z.string().url({
+    message: "Host must be a valid URL",
+  }),
+  port: z.coerce.number().int().positive({
     message: "Port must be a positive integer",
   }),
   rpcUser: z.string(),
@@ -120,7 +122,7 @@ export default function BitcoinNodePage() {
               <FormItem>
                 <FormLabel>RPC Password</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input type="password" {...field} />
                 </FormControl>
                 <FormDescription>The RPC password of your node</FormDescription>
                 <FormMessage />
