@@ -17,6 +17,9 @@ import {
 } from "~/components/ui/form";
 import { Link } from "react-router-dom";
 import { ArrowLeftIcon } from "@radix-ui/react-icons";
+import { BitcoinCoreConfig } from "~/types";
+
+import { connectToBitcoinCore } from "~/tauriApi";
 
 const formSchema = z.object({
   host: z.string().url({
@@ -41,7 +44,7 @@ export default function BitcoinNodePage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const bitcoinCoreConfig = {
+    const bitcoinCoreConfig: BitcoinCoreConfig = {
       host: values.host,
       port: values.port,
       rpc_user: values.rpcUser,
@@ -50,7 +53,7 @@ export default function BitcoinNodePage() {
 
     try {
       // TODO: add toast on success
-      await invoke("connect_to_bitcoin_core", { bitcoinCoreConfig });
+      await connectToBitcoinCore(bitcoinCoreConfig);
     } catch (e) {
       // TODO: handle error in UI
       console.log("ERROR", e);
