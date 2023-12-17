@@ -158,6 +158,7 @@ async fn offer_contract(
     oracle_event_id: String,
     counter_party_public_key: &str,
     dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
+    msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
     oracle: tauri::State<'_, Arc<NostrNip4ResolvrOracle>>,
 ) -> Result<(), String> {
     let public_key = match bitcoin::secp256k1::PublicKey::from_str(counter_party_public_key) {
@@ -173,24 +174,43 @@ async fn offer_contract(
         oracle_event_id,
     );
 
-    let mut dlc_manager_or = dlc_manager_or.lock().await;
-    let mut binding = dlc_manager_or.as_mut();
-    let dlc_manager = match &mut binding {
-        Some(m) => m,
-        None => return Err(String::from("DLC manager not initialized.")),
+    let offer_dlc = {
+        let mut dlc_manager_or = dlc_manager_or.lock().await;
+        let mut binding = dlc_manager_or.as_mut();
+        let dlc_manager = match &mut binding {
+            Some(m) => m,
+            None => return Err(String::from("DLC manager not initialized.")),
+        };
+
+        match dlc_manager.send_offer(&dlc_contract, public_key) {
+            Ok(offer_dlc) => offer_dlc,
+            Err(e) => return Err(format!("Error creating contract offer: {}", e)),
+        }
     };
 
-    match dlc_manager.send_offer(&dlc_contract, public_key) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(format!("Error sending contract offer: {}", e)),
+    match msg_provider_or.lock().await.as_mut() {
+        Some(msg_provider) => {
+            let (counter_party_x_only_pubkey, counter_party_parity) =
+                public_key.x_only_public_key();
+            msg_provider
+                .send(
+                    helper::bitcoin_xonly_to_nostr_xonly(&counter_party_x_only_pubkey),
+                    nostr::ResolvrEscrowMessage::OfferDlc((offer_dlc, counter_party_parity)),
+                )
+                .await
+                .unwrap();
+        }
+        None => return Err(String::from("Message provider not initialized.")),
     }
+
+    Ok(())
 }
 
 #[tauri::command]
 async fn accept_contract(
     contract_id: String,
     dlc_manager_or: tauri::State<'_, Arc<Mutex<Option<ResolvrDlcManager>>>>,
-    dlc_msg_handler: tauri::State<'_, Arc<NostrNip04MessageProvider>>,
+    msg_provider_or: tauri::State<'_, Arc<Mutex<Option<NostrNip04MessageProvider>>>>,
 ) -> Result<JsonContract, String> {
     let contract_id_bytes = match hex::decode(contract_id) {
         Ok(v) => v,
@@ -211,35 +231,45 @@ async fn accept_contract(
         }
     };
 
-    let mut dlc_manager_or = dlc_manager_or.lock().await;
-    let mut binding = dlc_manager_or.as_mut();
-    let dlc_manager = match &mut binding {
-        Some(m) => m,
-        None => return Err(String::from("DLC manager not initialized.")),
-    };
+    let (counter_party, accept_dlc, contract) = {
+        let mut dlc_manager_or = dlc_manager_or.lock().await;
+        let mut binding = dlc_manager_or.as_mut();
+        let dlc_manager = match &mut binding {
+            Some(m) => m,
+            None => return Err(String::from("DLC manager not initialized.")),
+        };
 
-    let (_, counter_party, accept_dlc) = match dlc_manager.accept_contract_offer(&contract_id) {
-        Ok(res) => res,
-        Err(e) => return Err(format!("Error accepting contract: {}", e)),
+        let (_, counter_party, accept_dlc) = match dlc_manager.accept_contract_offer(&contract_id) {
+            Ok(res) => res,
+            Err(e) => return Err(format!("Error accepting contract: {}", e)),
+        };
+
+        let contract = match dlc_manager.get_store().get_contract(&contract_id) {
+            Ok(v) => match v {
+                Some(v) => v,
+                None => return Err(String::from("Contract not found.")),
+            },
+            Err(e) => return Err(format!("Error getting contract: {}", e)),
+        };
+
+        (counter_party, accept_dlc, contract)
     };
 
     let (counter_party_x_only_pubkey, counter_party_parity) = counter_party.x_only_public_key();
 
-    dlc_msg_handler
+    let mut msg_provider_or = msg_provider_or.lock().await;
+    let mut binding = msg_provider_or.as_mut();
+    let msg_provider = match &mut binding {
+        Some(m) => m,
+        None => return Err(String::from("DLC manager not initialized.")),
+    };
+    msg_provider
         .send(
             helper::bitcoin_xonly_to_nostr_xonly(&counter_party_x_only_pubkey),
             nostr::ResolvrEscrowMessage::AcceptDlc((accept_dlc, counter_party_parity)),
         )
         .await
         .unwrap();
-
-    let contract = match dlc_manager.get_store().get_contract(&contract_id) {
-        Ok(v) => match v {
-            Some(v) => v,
-            None => return Err(String::from("Contract not found.")),
-        },
-        Err(e) => return Err(format!("Error getting contract: {}", e)),
-    };
 
     Ok((&contract).into())
 }
