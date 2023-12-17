@@ -8,9 +8,8 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
-import { invoke } from "@tauri-apps/api";
 
-import { generatePrivateKey, getPublicKey, nip19 } from "nostr-tools";
+import { nip19 } from "nostr-tools";
 
 import * as z from "zod";
 import { useForm } from "react-hook-form";
@@ -76,13 +75,8 @@ export default function RegisterForm({ setFormState }: RegisterFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const pk = nip19.decode(values.npub).data as string;
     const npub = nip19.npubEncode(pk);
-    const response: string = await invoke("login_with_npub", {
-      npub: npub,
-    });
 
-    if (response !== "success") {
-      return;
-    }
+    // TODO: Create Tauri command `login_with_npub` and call it here.
 
     const store = new Store(".credentials.dat");
     await store.set("pubkey", { value: pk });
