@@ -19,7 +19,7 @@ use dlc_messages::Message;
 use dlc_sled_storage_provider::SledStorageProvider;
 use escrow_agent_messages::EscrowAgent;
 use escrow_agent_messages::{AdjudicationRequest, AdjudicationRequestStatus};
-use helper::bitcoin_xonly_to_nostr_xonly;
+use helper::{bitcoin_xonly_to_nostr_xonly, nostr_xonly_to_bitcoin_xonly};
 use keyring::Entry;
 use nostr::{NostrNip04MessageProvider, ResolvrEscrowMessage};
 use resolvr_oracle::{
@@ -231,10 +231,12 @@ async fn accept_contract(
         Err(e) => return Err(format!("Error accepting contract: {}", e)),
     };
 
+    let (counter_party_x_only_pubkey, counter_party_parity) = counter_party.x_only_public_key();
+
     dlc_msg_handler
         .send(
-            helper::bitcoin_xonly_to_nostr_xonly(&counter_party.x_only_public_key().0),
-            nostr::ResolvrEscrowMessage::AcceptDlc(accept_dlc),
+            helper::bitcoin_xonly_to_nostr_xonly(&counter_party_x_only_pubkey),
+            nostr::ResolvrEscrowMessage::AcceptDlc((accept_dlc, counter_party_parity)),
         )
         .await
         .unwrap();
@@ -347,7 +349,11 @@ async fn main() {
                 let mut dlc_msg_handler_or = dlc_msg_handler_or_clone.lock().await;
                 if let Some(dlc_msg_handler) = dlc_msg_handler_or.as_mut() {
                     while let Some(msg) = dlc_msg_handler.pop() {
-                        incoming_dlc_messages.push((msg.msg.to_dlc_message(), msg.sender));
+                        let (dlc_msg, sender_parity) = msg.msg.to_dlc_message();
+                        incoming_dlc_messages.push((
+                            dlc_msg,
+                            nostr_xonly_to_bitcoin_xonly(&msg.sender).public_key(sender_parity),
+                        ));
                     }
                 }
             }
@@ -368,11 +374,17 @@ async fn main() {
             {
                 let mut dlc_msg_handler_or = dlc_msg_handler_or_clone.lock().await;
                 if let Some(dlc_msg_handler) = dlc_msg_handler_or.as_mut() {
-                    while let Some((dlc_msg, sender)) = outgoing_dlc_messages.pop() {
+                    while let Some((dlc_msg, sender_pubkey)) = outgoing_dlc_messages.pop() {
+                        let (sender_x_only_pubkey, sender_pubkey_parity) =
+                            sender_pubkey.x_only_public_key();
                         dlc_msg_handler
                             .send(
-                                bitcoin_xonly_to_nostr_xonly(&sender.x_only_public_key().0),
-                                ResolvrEscrowMessage::from_dlc_message(dlc_msg).unwrap(),
+                                bitcoin_xonly_to_nostr_xonly(&sender_x_only_pubkey),
+                                ResolvrEscrowMessage::from_dlc_message(
+                                    dlc_msg,
+                                    sender_pubkey_parity,
+                                )
+                                .unwrap(),
                             )
                             .await
                             .unwrap();

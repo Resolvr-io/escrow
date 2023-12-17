@@ -10,16 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-use super::helper::nostr_xonly_to_bitcoin_xonly;
-
-// TODO: I'm pretty sure we can't just assume that the parity is even.
-const PUBLIC_KEY_PARITY: Parity = Parity::Even;
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ResolvrEscrowMessage {
-    OfferDlc(OfferDlc),
-    AcceptDlc(AcceptDlc),
-    SignDlc(SignDlc),
+    OfferDlc((OfferDlc, Parity)),
+    AcceptDlc((AcceptDlc, Parity)),
+    SignDlc((SignDlc, Parity)),
 }
 
 impl ResolvrEscrowMessage {
@@ -31,19 +26,31 @@ impl ResolvrEscrowMessage {
         Ok(bincode::deserialize(&hex::decode(encoded_hex_string)?)?)
     }
 
-    pub fn to_dlc_message(self) -> Message {
+    pub fn to_dlc_message(self) -> (Message, Parity) {
         match self {
-            ResolvrEscrowMessage::OfferDlc(offer_dlc) => Message::Offer(offer_dlc),
-            ResolvrEscrowMessage::AcceptDlc(accept_dlc) => Message::Accept(accept_dlc),
-            ResolvrEscrowMessage::SignDlc(sign_dlc) => Message::Sign(sign_dlc),
+            ResolvrEscrowMessage::OfferDlc((offer_dlc, pubkey_parity)) => {
+                (Message::Offer(offer_dlc), pubkey_parity)
+            }
+            ResolvrEscrowMessage::AcceptDlc((accept_dlc, pubkey_parity)) => {
+                (Message::Accept(accept_dlc), pubkey_parity)
+            }
+            ResolvrEscrowMessage::SignDlc((sign_dlc, pubkey_parity)) => {
+                (Message::Sign(sign_dlc), pubkey_parity)
+            }
         }
     }
 
-    pub fn from_dlc_message(msg: Message) -> Option<Self> {
+    pub fn from_dlc_message(msg: Message, pubkey_parity: Parity) -> Option<Self> {
         match msg {
-            Message::Offer(offer_dlc) => Some(ResolvrEscrowMessage::OfferDlc(offer_dlc)),
-            Message::Accept(accept_dlc) => Some(ResolvrEscrowMessage::AcceptDlc(accept_dlc)),
-            Message::Sign(sign_dlc) => Some(ResolvrEscrowMessage::SignDlc(sign_dlc)),
+            Message::Offer(offer_dlc) => {
+                Some(ResolvrEscrowMessage::OfferDlc((offer_dlc, pubkey_parity)))
+            }
+            Message::Accept(accept_dlc) => {
+                Some(ResolvrEscrowMessage::AcceptDlc((accept_dlc, pubkey_parity)))
+            }
+            Message::Sign(sign_dlc) => {
+                Some(ResolvrEscrowMessage::SignDlc((sign_dlc, pubkey_parity)))
+            }
             _ => None,
         }
     }
@@ -51,7 +58,7 @@ impl ResolvrEscrowMessage {
 
 #[derive(Clone, Debug)]
 pub struct NostrEncodedDirectMessage {
-    pub sender: bitcoin::secp256k1::PublicKey,
+    pub sender: nostr_sdk::prelude::XOnlyPublicKey,
     pub msg: ResolvrEscrowMessage,
 }
 
@@ -101,12 +108,8 @@ impl NostrNip04MessageProvider {
                             {
                                 if let Ok(msg) = ResolvrEscrowMessage::from_encoded_hex_string(&msg)
                                 {
-                                    // TODO: Verify that [key -> string -> key] works.
-                                    let converted_xonly_pubkey =
-                                        nostr_xonly_to_bitcoin_xonly(&event.pubkey);
                                     let _ = tx.send(NostrEncodedDirectMessage {
-                                        sender: converted_xonly_pubkey
-                                            .public_key(PUBLIC_KEY_PARITY),
+                                        sender: event.pubkey,
                                         msg,
                                     });
                                 }
